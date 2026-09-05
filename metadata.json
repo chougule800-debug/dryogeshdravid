@@ -1,0 +1,6 @@
+{
+  "name": "Dr. Dravid's Homeopathy",
+  "description": "Official website of Dr. Dravid's Homoeopathic Clinic (Belgaum & Goa) with online appointment booking, email reminders, pre-and-post case gallery, articles, and admin portal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
