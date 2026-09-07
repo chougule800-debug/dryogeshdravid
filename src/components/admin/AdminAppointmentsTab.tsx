@@ -53,7 +53,7 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
   const [formTime, setFormTime] = useState('10:30 AM');
   const [formConcern, setFormConcern] = useState('');
   const [formMode, setFormMode] = useState<'In-Clinic' | 'Video/Online'>('In-Clinic');
-  const [formStatus, setFormStatus] = useState<'Confirmed' | 'Completed' | 'Cancelled' | 'Rescheduled'>('Confirmed');
+  const [formStatus, setFormStatus] = useState<'Tentative' | 'Confirmed' | 'Completed' | 'Cancelled' | 'Rescheduled'>('Tentative');
 
   const [notificationMsg, setNotificationMsg] = useState('');
 
@@ -95,7 +95,7 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
     setFormTime('10:30 AM');
     setFormConcern('');
     setFormMode('In-Clinic');
-    setFormStatus('Confirmed');
+    setFormStatus('Tentative');
   };
 
   const handleSaveForm = (e: React.FormEvent) => {
@@ -156,7 +156,7 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
     setIsCreatingNew(false);
   };
 
-  const handleStatusChange = (id: string, newStatus: 'Confirmed' | 'Completed' | 'Cancelled' | 'Rescheduled') => {
+  const handleStatusChange = (id: string, newStatus: 'Tentative' | 'Confirmed' | 'Completed' | 'Cancelled' | 'Rescheduled') => {
     const updated = appointments.map((a) => (a.id === id ? { ...a, status: newStatus } : a));
     onUpdateAppointments(updated);
     showNotification(`Status updated to ${newStatus}`);
@@ -206,15 +206,41 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
     document.body.removeChild(link);
   };
 
-  // Generate WhatsApp Message Link for Patient
+  // Generate WhatsApp Message Link for Patient (confirmation)
   const getWhatsAppLink = (appt: Appointment) => {
     const doc = doctors.find((d) => d.id === appt.doctorId);
     const branchName = appt.branchId === 'goa' ? 'Goa Visiting Clinic (Quepem)' : "Belgaum Main Clinic (Opp. Kalpvruksh Hotel)";
     const cleanPhone = appt.patientPhone.replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
     
-    const text = `Hello ${appt.patientName},\n\nThis is a reminder regarding your appointment with ${doc?.name || 'Dr. Dravid'} at Dr. Dravid's Homoeopathic Clinic.\n\n📅 Date: ${appt.appointmentDate}\n⏰ Time: ${appt.appointmentTime}\n🏥 Location: ${branchName}\n📋 Mode: ${appt.consultationType}\n📊 Status: ${appt.status}\n\nClinic Helpline: +91 8762465349. Please feel free to reply if you need any adjustments.`;
-    return `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(text)}`;
+    // Construct confirmation message
+    const dateFormatted = new Date(appt.appointmentDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+    const message = `Dear ${appt.patientName},
+
+Your appointment at Dr. Dravid's Homoeopathic Clinic has been confirmed.
+
+📅 Date: ${dateFormatted}
+⏰ Time: ${appt.appointmentTime}
+🏥 Clinic: ${branchName}
+📋 Mode: ${appt.consultationType}
+
+Please arrive on time for your scheduled appointment. If you are unable to attend, kindly inform us in advance.
+
+Please bring your previous medical records, investigation reports and prescriptions/medicines for reference.
+
+📍 Location:
+${appt.branchId === 'belgaum' ? 'https://goo.gl/maps/VbZETwutJjYMSpqU9' : 'https://g.co/kgs/vXsV92'}
+
+For any changes or appointment-related queries, please call 8762465349.
+
+Thank you for your cooperation.`;
+
+    return `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(message)}`;
   };
 
   // Filtered appointments
@@ -233,6 +259,7 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
     return matchesSearch && matchesStatus && matchesBranch && matchesDoctor;
   });
 
+  const countTentative = appointments.filter((a) => a.status === 'Tentative').length;
   const countConfirmed = appointments.filter((a) => a.status === 'Confirmed').length;
   const countRescheduled = appointments.filter((a) => a.status === 'Rescheduled').length;
   const countCompleted = appointments.filter((a) => a.status === 'Completed').length;
@@ -241,10 +268,14 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
   return (
     <div className="p-6 overflow-y-auto space-y-6 flex-1">
       {/* Top Banner & Quick Metrics */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-6 gap-3">
         <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
-          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Bookings</div>
+          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total</div>
           <div className="text-xl font-bold text-slate-900 mt-1 font-serif-display">{appointments.length}</div>
+        </div>
+        <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 shadow-2xs">
+          <div className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">Tentative</div>
+          <div className="text-xl font-bold text-amber-900 mt-1 font-serif-display">{countTentative}</div>
         </div>
         <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 shadow-2xs">
           <div className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Confirmed</div>
@@ -258,7 +289,7 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
           <div className="text-[11px] font-bold text-sky-800 uppercase tracking-wider">Completed</div>
           <div className="text-xl font-bold text-sky-900 mt-1 font-serif-display">{countCompleted}</div>
         </div>
-        <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 shadow-2xs col-span-2 sm:col-span-1">
+        <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 shadow-2xs">
           <div className="text-[11px] font-bold text-rose-800 uppercase tracking-wider">Cancelled</div>
           <div className="text-xl font-bold text-rose-900 mt-1 font-serif-display">{countCancelled}</div>
         </div>
@@ -295,6 +326,7 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
             className="px-2.5 py-2 text-xs rounded-xl border border-slate-300 bg-slate-50 font-medium"
           >
             <option value="all">All Statuses</option>
+            <option value="Tentative">Tentative</option>
             <option value="Confirmed">Confirmed</option>
             <option value="Rescheduled">Rescheduled</option>
             <option value="Completed">Completed</option>
@@ -511,6 +543,7 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
                   onChange={(e) => setFormStatus(e.target.value as any)}
                   className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-bold text-emerald-800"
                 >
+                  <option value="Tentative">Tentative</option>
                   <option value="Confirmed">Confirmed</option>
                   <option value="Rescheduled">Rescheduled</option>
                   <option value="Completed">Completed</option>
@@ -569,6 +602,7 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
           {filtered.map((appt) => {
             const doc = doctors.find((d) => d.id === appt.doctorId);
             const isGoa = appt.branchId === 'goa';
+            const isTentative = appt.status === 'Tentative';
 
             return (
               <div
@@ -594,6 +628,11 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
                       {appt.consultationType}
                     </span>
+                    {isTentative && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                        Tentative
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -610,7 +649,9 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
 
                     {/* Quick Status Pill */}
                     <span className={`px-2.5 py-1 rounded-xl text-xs font-bold ${
-                      appt.status === 'Confirmed'
+                      appt.status === 'Tentative'
+                        ? 'bg-amber-100 text-amber-900 border border-amber-200'
+                        : appt.status === 'Confirmed'
                         ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
                         : appt.status === 'Rescheduled'
                         ? 'bg-amber-100 text-amber-900 border border-amber-200'
@@ -649,16 +690,18 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
                   {/* Left: Quick Communication */}
                   <div className="flex items-center gap-2">
-                    <a
-                      href={getWhatsAppLink(appt)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-50 hover:bg-green-100 text-green-800 font-bold border border-green-200 transition-colors"
-                      title="Send WhatsApp appointment confirmation / reminder"
+                    <button
+                      onClick={() => {
+                        // Open WhatsApp with confirmation message
+                        const link = getWhatsAppLink(appt);
+                        window.open(link, '_blank');
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-50 hover:bg-green-100 text-green-800 font-bold border border-green-200 transition-colors cursor-pointer"
+                      title="Send WhatsApp confirmation"
                     >
                       <MessageCircle className="w-3.5 h-3.5 text-green-600" />
                       <span>WhatsApp Patient</span>
-                    </a>
+                    </button>
 
                     <a
                       href={`tel:${appt.patientPhone}`}
@@ -678,6 +721,7 @@ export const AdminAppointmentsTab: React.FC<AdminAppointmentsTabProps> = ({
                         onChange={(e) => handleStatusChange(appt.id, e.target.value as any)}
                         className="px-2 py-1 text-xs rounded-lg border border-slate-300 bg-white font-semibold"
                       >
+                        <option value="Tentative">Tentative</option>
                         <option value="Confirmed">Confirmed</option>
                         <option value="Rescheduled">Rescheduled</option>
                         <option value="Completed">Completed</option>

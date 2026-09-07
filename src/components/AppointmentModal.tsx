@@ -17,7 +17,8 @@ import {
   Building,
   Heart,
   Stethoscope,
-  ExternalLink
+  ExternalLink,
+  Info
 } from 'lucide-react';
 
 interface AppointmentModalProps {
@@ -51,26 +52,31 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
   const [healthConcern, setHealthConcern] = useState<string>('');
   const [consultationType, setConsultationType] = useState<'In-Clinic' | 'Video/Online'>('In-Clinic');
 
-  // Submission & Email simulation states
+  // Submission states
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedAppt, setConfirmedAppt] = useState<Appointment | null>(null);
-  const [copied, setCopied] = useState(false);
+
+  // For clinic rules expand/collapse
+  const [showRules, setShowRules] = useState(false);
 
   useEffect(() => {
     if (initialBranch) setBranch(initialBranch);
     if (initialDoctorId) setDoctorId(initialDoctorId);
   }, [initialBranch, initialDoctorId, isOpen]);
 
-  // Calculate upcoming valid dates
+  // Calculate available dates: only from tomorrow onwards (one-day advance rule)
   const availableDates = React.useMemo(() => {
     const list: { label: string; value: string; isSecondSunday?: boolean }[] = [];
     const today = new Date();
+    // Start from tomorrow
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() + 1);
 
     if (branch === 'goa') {
-      // Find next 4 Second Sundays
+      // Find next 4 Second Sundays starting from tomorrow
       for (let m = 0; m < 6; m++) {
-        const year = today.getFullYear();
-        const month = today.getMonth() + m;
+        const year = startDate.getFullYear();
+        const month = startDate.getMonth() + m;
         const calcDate = new Date(year, month, 1);
         let sundayCount = 0;
 
@@ -80,7 +86,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
           if (d.getDay() === 0) {
             sundayCount++;
             if (sundayCount === 2) {
-              if (d >= today) {
+              if (d >= startDate) {
                 const val = d.toISOString().split('T')[0];
                 const lbl = d.toLocaleDateString('en-US', {
                   weekday: 'short',
@@ -95,11 +101,12 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
         }
       }
     } else {
-      // Belgaum: Next 18 days (Monday to Friday only; Saturday & Sunday Closed)
-      for (let i = 1; i <= 21; i++) {
-        const d = new Date(today);
-        d.setDate(today.getDate() + i);
-        if (d.getDay() !== 0 && d.getDay() !== 6) { // skip Sun (0) & Sat (6)
+      // Belgaum: Next 21 days from tomorrow, Monday to Friday only
+      for (let i = 0; i < 21; i++) {
+        const d = new Date(startDate);
+        d.setDate(startDate.getDate() + i);
+        const dayNum = d.getDay();
+        if (dayNum !== 0 && dayNum !== 6) { // skip Sat, Sun
           const val = d.toISOString().split('T')[0];
           const lbl = d.toLocaleDateString('en-US', {
             weekday: 'short',
@@ -114,7 +121,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     return list;
   }, [branch]);
 
-  // Available time slots based on branch
+  // Time slots based on branch
   const timeSlots = React.useMemo(() => {
     if (branch === 'goa') {
       return [
@@ -140,7 +147,7 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
     ];
   }, [branch]);
 
-  // Set default date when list changes
+  // Set default date/time when list changes
   useEffect(() => {
     if (availableDates.length > 0 && (!date || !availableDates.some(d => d.value === date))) {
       setDate(availableDates[0].value);
@@ -165,6 +172,13 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
       alert('No doctors are available for booking yet.');
       return;
     }
+    // Check if date is today or earlier (should not happen with available dates, but just in case)
+    const today = new Date();
+    const selectedDate = new Date(date);
+    if (selectedDate <= today) {
+      alert('Appointment requests must be made at least one day in advance. Please select a future date.');
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -181,9 +195,9 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
       appointmentDate: date,
       appointmentTime: time,
       consultationType,
-      status: 'Confirmed',
+      status: 'Tentative', // status is now tentative
       createdAt: new Date().toISOString(),
-      emailReminderSent: true,
+      emailReminderSent: false, // not sent automatically
     };
 
     setTimeout(() => {
@@ -191,40 +205,6 @@ export const AppointmentModal: React.FC<AppointmentModalProps> = ({
       setConfirmedAppt(newAppt);
       setIsSubmitting(false);
     }, 600);
-  };
-
-  const getWhatsAppMessageText = (appt: Appointment) => {
-    const formattedDate = new Date(appt.appointmentDate).toLocaleDateString('en-US', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'short',
-      year: '2-digit'
-    });
-
-    return `Dear ${appt.patientName}, 
-
-your appointment at Dr DRAVID'S HOMOEOPATHIC CLINIC on ${formattedDate}, ${appt.appointmentTime.split(' ')[0]} ${appt.appointmentTime.split(' ')[1] || 'PM'} has been confirmed. 
-
-Please call 8762465349 for any changes.
-
-Website: no website appointments
-
-Location: https://goo.gl/maps/VbZETwutJjYMSpqU9
-
-Note: Your appointment at Dr. DRAVID’S HOMOEOPATHIC CLINIC has been confirmed. 🩺
-
-For any changes or appointment-related queries, please call 8762465349.
-
-📍 Location:
-https://goo.gl/maps/VbZETwutJjYMSpqU9
-
-Important Instructions: 
-
-Please book your tentative consultation or follow‑up slot one day in advance at Belagavi Clinic.
-
-Please arrive on time for your scheduled appointment. If you are unable to attend, kindly inform us in advance.
-
-Please bring all previous medical records, investigation reports, and prescriptions.`;
   };
 
   return (
@@ -239,7 +219,7 @@ Please bring all previous medical records, investigation reports, and prescripti
             </div>
             <div>
               <h3 className="text-xl font-bold font-serif-display">
-                {confirmedAppt ? 'Appointment Slot Confirmed' : 'Consult Dr. Yogesh Dravid'}
+                {confirmedAppt ? 'Tentative Request Submitted' : 'Request Consultation with Dr. Yogesh Dravid'}
               </h3>
               <p className="text-xs text-emerald-100/80">
                 Dr. Dravid's Homoeopathic Clinic &bull; Belgaum &amp; Goa
@@ -255,73 +235,99 @@ Please bring all previous medical records, investigation reports, and prescripti
           </button>
         </div>
 
-        {/* Notice Strip on Consulting Policy */}
-        <div className="bg-amber-50 border-b border-amber-200/80 px-6 py-2.5 text-xs text-amber-900 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-          <span>
-            <strong>Belgaum Hours:</strong> Mon–Fri: 12–2 PM (New Cases) &amp; 6–8 PM (Follow-ups). Saturday &amp; Sunday closed. WhatsApp is for patient info only. Call <strong>8762465349</strong> to confirm.
-          </span>
-        </div>
+        {/* Tentative Request Notice - shown only before submission */}
+        {!confirmedAppt && (
+          <div className="bg-amber-50 border-b border-amber-200/80 px-6 py-3 text-xs text-amber-900 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+            <span>
+              <strong>Important:</strong> This is only a <strong>tentative request</strong> to check the doctor's availability. Your appointment is <strong>NOT confirmed</strong> when you submit this form. The clinic will check availability and send the confirmed appointment timing to you on <strong>WhatsApp</strong>.
+              <br />
+              <span className="font-semibold">Please book your tentative consultation/follow-up slot at least one day in advance.</span>
+            </span>
+          </div>
+        )}
 
         {confirmedAppt ? (
-          /* Confirmation & WhatsApp Copy Screen */
+          /* Success Screen - Tentative Request Submitted */
           <div className="p-6 sm:p-8 space-y-6">
             <div className="text-center space-y-2">
-              <div className="w-12 h-12 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto">
+              <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
               <h4 className="text-xl font-bold text-slate-900 font-serif-display">
-                Appointment Registered!
+                Tentative Request Submitted
               </h4>
-              <p className="text-xs sm:text-sm text-slate-600">
-                A confirmation has been prepared for <strong className="text-slate-800">{confirmedAppt.patientName}</strong>.
+              <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
+                Your request for a consultation/follow-up has been received. This does not confirm your appointment. 
+                The clinic will check the doctor's availability and send the confirmed appointment timing to you on <strong>WhatsApp</strong>.
+              </p>
+              <p className="text-xs text-slate-500">
+                <strong>Please note:</strong> Requests must be made at least one day in advance.
               </p>
             </div>
 
-            {/* WhatsApp Formatted Message Box */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                <span>Official WhatsApp Message Format:</span>
-                <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded text-[11px]">Ready to copy</span>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-200 text-xs text-slate-800 font-sans whitespace-pre-line leading-relaxed max-h-64 overflow-y-auto">
-                {getWhatsAppMessageText(confirmedAppt)}
+            {/* Display summary of request */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <span className="font-semibold text-slate-600">Patient:</span>
+                <span>{confirmedAppt.patientName}</span>
+                <span className="font-semibold text-slate-600">Requested Date:</span>
+                <span>{confirmedAppt.appointmentDate}</span>
+                <span className="font-semibold text-slate-600">Requested Time:</span>
+                <span>{confirmedAppt.appointmentTime}</span>
+                <span className="font-semibold text-slate-600">Branch:</span>
+                <span>{confirmedAppt.branchId === 'belgaum' ? 'Belgaum' : 'Goa'}</span>
+                <span className="font-semibold text-slate-600">Status:</span>
+                <span className="text-amber-600 font-bold">Tentative</span>
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(getWhatsAppMessageText(confirmedAppt));
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2500);
-                }}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#1ebc59] text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
-              >
-                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                <span>{copied ? 'Copied to Clipboard!' : 'Copy WhatsApp Message'}</span>
-              </button>
-
-              <a
-                href="https://goo.gl/maps/VbZETwutJjYMSpqU9"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold text-xs transition-colors"
-              >
-                <MapPin className="w-3.5 h-3.5 text-red-500" />
-                <span>Open Belgaum Clinic Map</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-
-              <button
-                onClick={onClose}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs transition-colors cursor-pointer"
-              >
-                Close
-              </button>
+            {/* Instructions */}
+            <div className="space-y-3 text-xs text-slate-700 bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200">
+              <div className="flex items-center gap-2 font-bold text-emerald-800">
+                <Info className="w-4 h-4" />
+                <span>What happens next?</span>
+              </div>
+              <ul className="list-disc list-inside space-y-1 text-slate-700">
+                <li>The clinic will review your request and check the doctor's availability.</li>
+                <li>You will receive a WhatsApp message with the <strong>confirmed appointment timing</strong>.</li>
+                <li>Please wait for the WhatsApp confirmation before considering your appointment confirmed.</li>
+                <li>If you need to make changes, you can call the clinic at <strong>8762465349</strong>.</li>
+              </ul>
             </div>
+
+            {/* Clinic Rules Summary (collapsible) */}
+            <div className="border-t border-slate-200 pt-4">
+              <button
+                onClick={() => setShowRules(!showRules)}
+                className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                <span>{showRules ? 'Hide' : 'Show'} Clinic Rules & Instructions</span>
+                <span className="text-[10px]">{showRules ? '▲' : '▼'}</span>
+              </button>
+              {showRules && (
+                <div className="mt-2 text-xs text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Patients are requested to maintain cleanliness, discipline and decorum inside the clinic premises.</li>
+                    <li>Please arrive on time for your appointment. Kindly intimate prior if you are unable to attend the scheduled appointment.</li>
+                    <li>Please bring all your previous/prescribed medical records, investigation reports, and prescriptions/medicines for reference.</li>
+                    <li>Kindly maintain silence and avoid loud conversations or unnecessary mobile phone use inside the clinic. 📵</li>
+                    <li>Kindly cooperate with clinic staff during registration and consultation.</li>
+                    <li>Kindly avoid repeated non-emergency calls to the doctor during consultation hours.</li>
+                    <li>Please respect every patient's personal space, time and privacy.</li>
+                    <li>Kindly wait patiently and follow the appointment sequence.</li>
+                    <li>Please avoid bringing children to the clinic unless they are accompanying a patient for consultation, to help minimize the risk of cross-infection.</li>
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={onClose}
+              className="w-full py-3 rounded-xl bg-[#2D5A50] hover:bg-[#20423a] text-white font-bold text-sm shadow-sm transition-colors cursor-pointer"
+            >
+              Close
+            </button>
           </div>
         ) : (
           /* Booking Form */
@@ -374,6 +380,9 @@ Please bring all previous medical records, investigation reports, and prescripti
                     </option>
                   ))}
                 </select>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  <span className="font-semibold">Note:</span> Requests must be made at least one day in advance.
+                </p>
               </div>
 
               <div>
@@ -487,6 +496,39 @@ Please bring all previous medical records, investigation reports, and prescripti
               </label>
             </div>
 
+            {/* Clinic Rules & Instructions - Collapsible */}
+            <div className="border-t border-slate-200 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowRules(!showRules)}
+                className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                <span>{showRules ? 'Hide' : 'Show'} Clinic Rules & Instructions</span>
+                <span className="text-[10px]">{showRules ? '▲' : '▼'}</span>
+              </button>
+              {showRules && (
+                <div className="mt-2 text-xs text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1">
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>Patients are requested to maintain cleanliness, discipline and decorum inside the clinic premises.</li>
+                    <li>Please arrive on time for your appointment. Kindly intimate prior if you are unable to attend the scheduled appointment.</li>
+                    <li>Please bring all your previous/prescribed medical records, investigation reports, and prescriptions/medicines for reference.</li>
+                    <li>Kindly maintain silence and avoid loud conversations or unnecessary mobile phone use inside the clinic. 📵</li>
+                    <li>Kindly cooperate with clinic staff during registration and consultation.</li>
+                    <li>Kindly avoid repeated non-emergency calls to the doctor during consultation hours.</li>
+                    <li>Please respect every patient's personal space, time and privacy.</li>
+                    <li>Kindly wait patiently and follow the appointment sequence.</li>
+                    <li>Please avoid bringing children to the clinic unless they are accompanying a patient for consultation, to help minimize the risk of cross-infection.</li>
+                  </ul>
+                  <p className="mt-2 text-amber-800 font-medium">
+                    <strong>Calls and messages outside consulting hours will be responded to later.</strong>
+                  </p>
+                  <p className="text-amber-800 text-[11px]">
+                    <strong>WhatsApp is only for patient information.</strong> Please do not text or WhatsApp for seeking appointments. You will receive a confirmation via WhatsApp after the clinic checks availability.
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Submit CTA */}
             <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
               <span className="text-xs text-slate-800 font-medium text-center sm:text-left">
@@ -499,11 +541,11 @@ Please bring all previous medical records, investigation reports, and prescripti
                 className="w-full sm:w-auto flex items-center justify-center gap-2 px-7 py-3 rounded-xl bg-[#2D5A50] hover:bg-[#20423a] text-white font-bold text-sm shadow-md transition-all active:scale-98 cursor-pointer disabled:opacity-50"
               >
                 {isSubmitting ? (
-                  <span>Securing Slot...</span>
+                  <span>Submitting Request...</span>
                 ) : (
                   <>
                     <Send className="w-4 h-4 text-emerald-300" />
-                    <span>Confirm &amp; Generate WhatsApp Slip</span>
+                    <span>Submit Tentative Request</span>
                   </>
                 )}
               </button>

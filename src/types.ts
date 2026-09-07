@@ -6,7 +6,8 @@ export interface Doctor {
   designation: string;
   qualification: string;
   role: string;
-  experienceYears: number;
+  experienceYears: number; // clinical practice
+  teachingExperienceYears?: number; // teaching experience
   image: string;
   bio: string;
   specializations: string[];
@@ -74,6 +75,8 @@ export interface BlogPost {
   tags: string[];
 }
 
+export type AppointmentStatus = 'Tentative' | 'Confirmed' | 'Completed' | 'Cancelled' | 'Rescheduled';
+
 export interface Appointment {
   id: string;
   patientName: string;
@@ -87,7 +90,7 @@ export interface Appointment {
   appointmentTime: string; // e.g. "10:30 AM"
   healthConcern: string;
   consultationType: 'In-Clinic' | 'Video/Online';
-  status: 'Confirmed' | 'Completed' | 'Cancelled' | 'Rescheduled';
+  status: AppointmentStatus;
   emailReminderSent: boolean;
   createdAt: string;
 }

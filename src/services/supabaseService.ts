@@ -32,6 +32,7 @@ const COLUMN_MAP: ColumnMap = {
     qualification: 'qualification',
     role: 'role',
     experienceYears: 'experience_years',
+    teachingExperienceYears: 'teaching_experience_years',
     image: 'image',
     bio: 'bio',
     specializations: 'specializations',

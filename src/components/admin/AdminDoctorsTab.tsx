@@ -36,6 +36,7 @@ export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
   const [docQualification, setDocQualification] = useState('');
   const [docRole, setDocRole] = useState('');
   const [docExperience, setDocExperience] = useState<number>(20);
+  const [docTeachingExperience, setDocTeachingExperience] = useState<number>(17);
   const [docImage, setDocImage] = useState('');
   const [docBio, setDocBio] = useState('');
   const [docDepartment, setDocDepartment] = useState('');
@@ -80,6 +81,7 @@ export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
     setDocQualification(doctor.qualification);
     setDocRole(doctor.role);
     setDocExperience(doctor.experienceYears);
+    setDocTeachingExperience(doctor.teachingExperienceYears || 17);
     setDocImage(doctor.image);
     setDocBio(doctor.bio);
     setDocDepartment(doctor.department || '');
@@ -94,7 +96,8 @@ export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
     setDocDesignation('Homoeopathic Consultant & Professor');
     setDocQualification('B.H.M.S, M.D. (Hom)');
     setDocRole('Senior Faculty & Physician');
-    setDocExperience(15);
+    setDocExperience(19);
+    setDocTeachingExperience(17);
     setDocImage('');
     setDocBio('');
     setDocDepartment('Department of Clinical Homoeopathy');
@@ -126,7 +129,8 @@ export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
         designation: docDesignation.trim(),
         qualification: docQualification.trim(),
         role: docRole.trim() || 'Consultant Homoeopath',
-        experienceYears: Number(docExperience) || 10,
+        experienceYears: Number(docExperience) || 19,
+        teachingExperienceYears: Number(docTeachingExperience) || 17,
         image: docImage || '',
         bio: docBio.trim(),
         department: docDepartment.trim(),
@@ -147,7 +151,8 @@ export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
         designation: docDesignation.trim(),
         qualification: docQualification.trim(),
         role: docRole.trim() || 'Consultant Homoeopath',
-        experienceYears: Number(docExperience) || 10,
+        experienceYears: Number(docExperience) || 19,
+        teachingExperienceYears: Number(docTeachingExperience) || 17,
         image: docImage || '',
         bio: docBio.trim(),
         department: docDepartment.trim(),
@@ -344,7 +349,7 @@ export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">Years of Experience</label>
+                    <label className="font-bold text-slate-700 block mb-1">Years of Clinical Practice</label>
                     <input
                       type="number"
                       min="1"
@@ -354,8 +359,18 @@ export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
                       className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-medium"
                     />
                   </div>
-
-                  <div className="sm:col-span-2">
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Years of Teaching Experience</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="60"
+                      value={docTeachingExperience}
+                      onChange={(e) => setDocTeachingExperience(Number(e.target.value))}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 bg-white font-medium"
+                    />
+                  </div>
+                  <div className="sm:col-span-1">
                     <label className="font-bold text-slate-700 block mb-1">Academic Affiliation / College</label>
                     <input
                       type="text"
@@ -525,7 +540,10 @@ export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
               <div className="pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
                 <div className="text-xs text-slate-500 flex items-center gap-1.5">
                   <Award className="w-3.5 h-3.5 text-amber-500" />
-                  <span><strong>{doctor.experienceYears}+ Yrs</strong> Experience</span>
+                  <span><strong>{doctor.experienceYears}+ Yrs</strong> Clinical</span>
+                  {doctor.teachingExperienceYears && (
+                    <span className="ml-2"><strong>{doctor.teachingExperienceYears}+ Yrs</strong> Teaching</span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">

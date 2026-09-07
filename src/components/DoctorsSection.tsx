@@ -12,7 +12,8 @@ import {
   Phone,
   MessageCircle,
   ShieldCheck,
-  Building
+  Building,
+  Instagram
 } from 'lucide-react';
 
 interface DoctorsSectionProps {
@@ -69,7 +70,7 @@ export const DoctorsSection: React.FC<DoctorsSectionProps> = ({ doctors = [], lo
             Meet Dr. Yogesh Dravid
           </h2>
           <p className="text-xs sm:text-sm text-slate-800 font-medium leading-relaxed">
-            HOD Department of Physiology at Bharatesh Homeopathic Medical College with 24+ years of clinical mastery in classical constitutional homoeopathy.
+            HOD Department of Physiology at Bharatesh Homeopathic Medical College with 19+ years of clinical practice and 17+ years of teaching experience in classical constitutional homoeopathy.
           </p>
         </div>
 
@@ -107,6 +108,17 @@ export const DoctorsSection: React.FC<DoctorsSectionProps> = ({ doctors = [], lo
                     <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-950 font-serif-display">
                       {doctor.name}
                     </h3>
+                    {/* Instagram Link */}
+                    <a
+                      href="https://www.instagram.com/the_healing_monk82?utm_source=qr&igsi=MXAxNTBwdTM5cmJlcg=="
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm font-semibold text-pink-600 hover:text-pink-700 transition-colors"
+                      title="Follow on Instagram"
+                    >
+                      <Instagram className="w-5 h-5" />
+                      <span className="text-xs">@the_healing_monk82</span>
+                    </a>
                   </div>
 
                   <p className="text-sm sm:text-base font-bold text-[#1C3F3A]">
@@ -121,6 +133,18 @@ export const DoctorsSection: React.FC<DoctorsSectionProps> = ({ doctors = [], lo
                     <GraduationCap className="w-4 h-4 text-[#1C3F3A] shrink-0 mt-0.5" />
                     <div>
                       <span className="font-bold text-[#1C3F3A]">{doctor.role}</span> &bull; <span className="text-slate-800 font-medium">{doctor.academicAffiliation}</span>
+                    </div>
+                  </div>
+
+                  {/* Experience Badges */}
+                  <div className="flex flex-wrap gap-3 pt-1">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold bg-amber-50/80 px-3 py-1.5 rounded-full border border-amber-200">
+                      <Award className="w-3.5 h-3.5 text-amber-600" />
+                      <span><strong className="text-slate-950">{doctor.experienceYears}+ Years</strong> Clinical Practice</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs font-semibold bg-sky-50/80 px-3 py-1.5 rounded-full border border-sky-200">
+                      <GraduationCap className="w-3.5 h-3.5 text-sky-600" />
+                      <span><strong className="text-slate-950">{doctor.teachingExperienceYears || 17}+ Years</strong> Teaching Experience</span>
                     </div>
                   </div>
                 </div>
@@ -157,7 +181,7 @@ export const DoctorsSection: React.FC<DoctorsSectionProps> = ({ doctors = [], lo
             <div className="pt-6 mt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
               <div className="flex items-center gap-2 text-xs text-slate-800 font-medium">
                 <Award className="w-4 h-4 text-amber-600" />
-                <span><strong className="text-slate-950 font-bold">{doctor.experienceYears}+ Years</strong> of Classical Practice</span>
+                <span><strong className="text-slate-950 font-bold">{doctor.experienceYears}+ Years</strong> of Clinical Practice</span>
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -279,4 +303,3 @@ export const DoctorsSection: React.FC<DoctorsSectionProps> = ({ doctors = [], lo
     </section>
   );
 };
-

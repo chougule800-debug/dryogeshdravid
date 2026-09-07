@@ -27,7 +27,7 @@ interface ChatMessage {
   sender: 'ai' | 'user';
   text: string;
   time: string;
-  isConfirmationSlip?: boolean;
+  isConfirmationSlip?: boolean; // we will remove this flag and use a different approach
   appointmentDetails?: {
     patientName: string;
     type: 'New Case' | 'Follow-up Case';
@@ -96,32 +96,7 @@ export const WhatsAppChatBot: React.FC<WhatsAppChatBotProps> = ({ clinics }) => 
     return days;
   }, []);
 
-  const generateSlipText = (name: string, dateText: string, timeText: string) => {
-    return `Dear ${name || 'Patient'}, 
-
-your appointment at Dr DRAVID'S HOMOEOPATHIC CLINIC on ${dateText || 'Monday, 24 Aug'}, ${timeText || '12:30 PM'} has been confirmed. 
-
-Please call ${clinicPhone} for any changes.
-
-Website: no website appointments
-
-Location: ${clinicMap}
-
-Note: Your appointment at Dr. DRAVID’S HOMOEOPATHIC CLINIC has been confirmed. 🩺
-
-For any changes or appointment-related queries, please call ${clinicPhone}.
-
-📍 Location:
-${clinicMap}
-
-Important Instructions: 
-
-Please book your tentative consultation or follow‑up slot one day in advance at Belagavi Clinic.
-
-Please arrive on time for your scheduled appointment. If you are unable to attend, kindly inform us in advance.
-
-Please bring all previous medical records, investigation reports, and prescriptions.`;
-  };
+  // We remove the generateSlipText function and replace with a message that says tentative request.
 
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -129,7 +104,7 @@ Please bring all previous medical records, investigation reports, and prescripti
       {
         id: 'init-1',
         sender: 'ai',
-        text: `Namaste! 🙏 I am the AI Medical Assistant for Dr. Dravid's Homoeopathic Clinic.\n\nHow can I help you today? Please choose an option or type your request below:`,
+        text: `Namaste! 🙏 I am the AI Medical Assistant for Dr. Dravid's Homoeopathic Clinic.\n\nHow can I help you today? Please choose an option or type your request below.`,
         time: timeNow,
       }
     ];
@@ -154,7 +129,7 @@ Please bring all previous medical records, investigation reports, and prescripti
           text,
           time: timeNow,
           options,
-          isConfirmationSlip: isSlip,
+          // We no longer use isConfirmationSlip; instead we handle tentative message differently.
           appointmentDetails: apptData
         }
       ]);
@@ -191,7 +166,7 @@ Please bring all previous medical records, investigation reports, and prescripti
         : `🌙 *Evening Session (6:00 PM – 8:00 PM)* is reserved for Follow-up Consultations.`;
 
       addAiMessage(
-        `Understood! You are scheduling a *${type}*.\n\n${sessionNote}\n\n📅 *Step 1/4: Please select your preferred day* (Monday to Friday; Saturday & Sunday are Closed):`,
+        `Understood! You are requesting a *${type}*.\n\n${sessionNote}\n\n📅 *Step 1/4: Please select your preferred day* (Monday to Friday; Saturday & Sunday are Closed) – <strong>note that requests must be made at least one day in advance.</strong>`,
         upcomingWeekdays.map(d => ({
           label: d.label,
           action: () => handleSelectDay(d.label, type)
@@ -246,17 +221,18 @@ Please bring all previous medical records, investigation reports, and prescripti
 
   const handleCompleteBooking = (name: string, phone: string, condition: string) => {
     setBookingStep('completed');
-    const fullSlip = generateSlipText(name, selectedDay || 'Monday, 24 Aug', selectedTime || '12:30 PM');
+    // Instead of a confirmation slip, we show a message that it's a tentative request.
+    const message = `✅ *Tentative Request Submitted for ${name}*\n\nThank you for submitting your tentative consultation/follow-up request.\n\nThis is *not a confirmed appointment*.\n\nThe clinic will check the doctor's availability and send the confirmed timing to you via WhatsApp.\n\n📅 Requested Date: ${selectedDay || 'N/A'}\n⏰ Requested Time: ${selectedTime || 'N/A'}\n📞 Phone: ${phone || clinicPhone}\n\nPlease wait for the clinic's WhatsApp confirmation.\n\nFor any changes, call ${clinicPhone}.`;
     
     addAiMessage(
-      `🎉 *Appointment Slip Generated for ${name}!* 🩺\n\nHere is your official appointment confirmation and patient guidelines. You can copy this slip or call ${clinicPhone} to finalize:`,
+      message,
       undefined,
-      true,
+      false, // not a slip
       {
         patientName: name,
         type: apptType,
-        day: selectedDay || 'Monday, 24 Aug',
-        time: selectedTime || '12:30 PM',
+        day: selectedDay || 'N/A',
+        time: selectedTime || 'N/A',
         phone: phone || clinicPhone,
         condition: condition || 'Constitutional evaluation'
       }
@@ -339,8 +315,8 @@ Please bring all previous medical records, investigation reports, and prescripti
       addAiMessage(
         `🕒 *DR. DRAVID'S CLINICAL CONSULTING HOURS*:\n\n• *Monday to Friday*:\n  ☀️ *Morning Session*: 12:00 PM – 2:00 PM (Exclusively for New Cases)\n  🌙 *Evening Session*: 6:00 PM – 8:00 PM (Only Follow-Up Cases)\n\n• *Saturday & Sunday*: CLOSED\n\n📌 *Important*: Calls & messages outside consulting hours are answered later. WhatsApp is for information only; prior phone booking on ${clinicPhone} is mandatory.`,
         [
-          { label: '📅 Book New Case (12 PM - 2 PM)', action: () => startAppointmentFlow('New Case') },
-          { label: '🔄 Book Follow-up (6 PM - 8 PM)', action: () => startAppointmentFlow('Follow-up Case') }
+          { label: '📅 Request New Case (12 PM - 2 PM)', action: () => startAppointmentFlow('New Case') },
+          { label: '🔄 Request Follow-up (6 PM - 8 PM)', action: () => startAppointmentFlow('Follow-up Case') }
         ]
       );
       return;
@@ -359,9 +335,9 @@ Please bring all previous medical records, investigation reports, and prescripti
 
     if (lower.includes('doctor') || lower.includes('dr') || lower.includes('yogesh') || lower.includes('dravid') || lower.includes('qualification') || lower.includes('professor') || lower.includes('experience')) {
       addAiMessage(
-        `👨‍⚕️ *DR. YOGESH DRAVID*:\n\n• *Designation*: Senior Homoeopathic Consultant & Professor\n• *Academic Role*: Head of the Department (HOD) of Human Physiology at Bharatesh Homeopathic Medical College & Hospital, Belgaum.\n• *Qualifications*: B.H.M.S, M.D. (Hom)\n• *Experience*: 24+ Years of clinical mastery in classical constitutional homeopathy.\n• *Specialty*: Chronic intractable diseases, gastrointestinal, autoimmune, respiratory, dermatology, and neurological disorders.`,
+        `👨‍⚕️ *DR. YOGESH DRAVID*:\n\n• *Designation*: Senior Homoeopathic Consultant & Professor\n• *Academic Role*: Head of the Department (HOD) of Human Physiology at Bharatesh Homeopathic Medical College & Hospital, Belgaum.\n• *Qualifications*: B.H.M.S, M.D. (Hom)\n• *Experience*: 19+ years clinical practice, 17+ years teaching experience in classical constitutional homeopathy.\n• *Specialty*: Chronic intractable diseases, gastrointestinal, autoimmune, respiratory, dermatology, and neurological disorders.`,
         [
-          { label: '📅 Schedule Consultation', action: () => startAppointmentFlow() },
+          { label: '📅 Request Consultation', action: () => startAppointmentFlow() },
           { label: `📞 Call ${clinicPhone}`, action: () => window.open(`tel:${clinicPhone}`) }
         ]
       );
@@ -382,7 +358,7 @@ Please bring all previous medical records, investigation reports, and prescripti
       addAiMessage(
         `📋 *INSTRUCTIONS FOR PATIENT CONSULTATION*:\n\n1. *Advance Booking*: Book tentative consultation or follow-up slot one day in advance at Belagavi Clinic (Call ${clinicPhone}).\n2. *Punctuality*: Arrive on time for your scheduled slot. If unable to attend, kindly inform in advance.\n3. *Medical Records*: Please bring all previous medical records, diagnostic lab investigation reports, and current prescriptions.`,
         [
-          { label: '📅 Book Now', action: () => startAppointmentFlow() }
+          { label: '📅 Request Now', action: () => startAppointmentFlow() }
         ]
       );
       return;
@@ -390,10 +366,10 @@ Please bring all previous medical records, investigation reports, and prescripti
 
     // Default friendly AI response with quick suggestion chips
     addAiMessage(
-      `Thank you for your message. I am Dr. Dravid's Clinic AI Assistant.\n\nWould you like to book an appointment, check the morning/evening schedule, or find clinic location?`,
+      `Thank you for your message. I am Dr. Dravid's Clinic AI Assistant.\n\nWould you like to request a consultation, check the morning/evening schedule, or find clinic location?`,
       [
-        { label: '🩺 New Case Appointment', action: () => startAppointmentFlow('New Case') },
-        { label: '🔄 Follow-up Appointment', action: () => startAppointmentFlow('Follow-up Case') },
+        { label: '🩺 New Case Request', action: () => startAppointmentFlow('New Case') },
+        { label: '🔄 Follow-up Request', action: () => startAppointmentFlow('Follow-up Case') },
         { label: '🕒 Consulting Hours', action: () => handleSendMessageDirect('What are consulting hours?') },
         { label: '📍 Clinic Location', action: () => handleSendMessageDirect('Where is the clinic?') }
       ]
@@ -408,8 +384,8 @@ Please bring all previous medical records, investigation reports, and prescripti
         addAiMessage(
           `🕒 *CONSULTING HOURS*:\n\n• *Mon–Fri Morning (12–2 PM)*: New Cases Only\n• *Mon–Fri Evening (6–8 PM)*: Follow-Up Cases Only\n• *Saturday & Sunday*: CLOSED`,
           [
-            { label: '🩺 Book New Case', action: () => startAppointmentFlow('New Case') },
-            { label: '🔄 Book Follow-up', action: () => startAppointmentFlow('Follow-up Case') }
+            { label: '🩺 Request New Case', action: () => startAppointmentFlow('New Case') },
+            { label: '🔄 Request Follow-up', action: () => startAppointmentFlow('Follow-up Case') }
           ]
         );
       } else if (lower.includes('where') || lower.includes('location')) {
@@ -420,11 +396,7 @@ Please bring all previous medical records, investigation reports, and prescripti
     }, 400);
   };
 
-  const handleCopySlip = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  };
+  // We remove the copy slip function as it's no longer used.
 
   return (
     <>
@@ -563,66 +535,10 @@ Please bring all previous medical records, investigation reports, and prescripti
                         : 'bg-[#DCF8C6] text-slate-900 rounded-tr-xs border border-emerald-200/50'
                     }`}
                   >
-                    {/* Confirmation Slip Card */}
-                    {msg.isConfirmationSlip ? (
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between pb-1.5 border-b border-slate-100 text-[11px] font-bold text-emerald-800">
-                          <span className="flex items-center gap-1">
-                            <Stethoscope className="w-3.5 h-3.5" />
-                            <span>OFFICIAL APPOINTMENT SLIP</span>
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                            Ready to Send
-                          </span>
-                        </div>
-
-                        <div className="whitespace-pre-line font-sans text-xs leading-relaxed text-slate-800 select-all bg-emerald-50/60 p-3 rounded-xl border border-emerald-200">
-                          {generateSlipText(
-                            msg.appointmentDetails?.patientName || '',
-                            msg.appointmentDetails?.day || '',
-                            msg.appointmentDetails?.time || ''
-                          )}
-                        </div>
-
-                        {/* Slip Actions */}
-                        <div className="pt-1 flex flex-wrap items-center gap-2">
-                          <button
-                            onClick={() => handleCopySlip(generateSlipText(
-                              msg.appointmentDetails?.patientName || '',
-                              msg.appointmentDetails?.day || '',
-                              msg.appointmentDetails?.time || ''
-                            ))}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25D366] hover:bg-[#1fb355] text-white text-[11px] font-bold shadow-2xs transition-all cursor-pointer"
-                          >
-                            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{copied ? 'Copied to Clipboard!' : 'Copy WhatsApp Slip'}</span>
-                          </button>
-
-                          <a
-                            href={`tel:${clinicPhone}`}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#075E54] hover:bg-[#064e46] text-white text-[11px] font-bold shadow-2xs transition-colors"
-                          >
-                            <Phone className="w-3 h-3 text-emerald-300" />
-                            <span>Call {clinicPhone}</span>
-                          </a>
-
-                          <a
-                            href={clinicMap}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-semibold transition-colors"
-                          >
-                            <MapPin className="w-3 h-3 text-red-500" />
-                            <span>Open Map</span>
-                            <ExternalLink className="w-2.5 h-2.5" />
-                          </a>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="whitespace-pre-line leading-relaxed">
-                        {msg.text}
-                      </div>
-                    )}
+                    {/* We removed the confirmation slip; now just display the text */}
+                    <div className="whitespace-pre-line leading-relaxed">
+                      {msg.text}
+                    </div>
 
                     {/* Interactive Choice Option Chips */}
                     {msg.options && msg.options.length > 0 && (
@@ -667,13 +583,13 @@ Please bring all previous medical records, investigation reports, and prescripti
               onClick={() => startAppointmentFlow('New Case')}
               className="shrink-0 px-2.5 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-950 text-[11px] font-bold border border-emerald-300 shadow-2xs transition-colors cursor-pointer"
             >
-              🩺 New Appointment
+              🩺 New Request
             </button>
             <button
               onClick={() => startAppointmentFlow('Follow-up Case')}
               className="shrink-0 px-2.5 py-1 rounded-full bg-teal-50 hover:bg-teal-100 text-teal-950 text-[11px] font-bold border border-teal-300 shadow-2xs transition-colors cursor-pointer"
             >
-              🔄 Follow-up Appointment
+              🔄 Follow-up Request
             </button>
             <button
               onClick={() => handleSendMessageDirect('What are consulting hours?')}

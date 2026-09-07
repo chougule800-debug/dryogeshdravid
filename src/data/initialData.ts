@@ -7,11 +7,20 @@ export const DOCTORS: Doctor[] = [
     designation: 'Senior Homoeopathic Consultant & Professor',
     qualification: 'B.H.M.S, M.D. (Hom), Senior Clinical Practitioner',
     role: 'HOD Department of Physiology',
-    experienceYears: 24,
+    experienceYears: 19,
+    teachingExperienceYears: 17,
     image: '/images/dr_yogesh_dravid.jpg',
     department: 'Department of Human Physiology & Clinical Homoeopathy',
     academicAffiliation: 'Bharatesh Homeopathic Medical College & Hospital, Belgaum',
-    bio: 'Dr. Yogesh Dravid is a distinguished Homoeopathic Physician, Professor, and Head of the Department of Physiology at Bharatesh Homeopathic Medical College, Belgaum. With over two decades of clinical mastery, Dr. Dravid merges profound physiological insight with classical Hahnemannian homeopathy to address chronic, deep-seated, and recurring pathological conditions.',
+    bio: `Dr. Yogesh R. Dravid is an experienced homoeopathic physician, academician, teacher, and researcher with a deep commitment to patient care and the advancement of homoeopathic medicine. With 19+ years of clinical practice and 17+ years of teaching experience in Physiology, he brings together clinical observation, academic knowledge, and a strong interest in evidence-based homoeopathy.
+
+He is known for his detailed approach to case-taking, individualised assessment, and his effort to understand the patient beyond merely the name of the disease. His clinical interests include chronic diseases, skin disorders, lifestyle disorders, and difficult-to-manage cases.
+
+As an academician, Dr. Dravid has contributed to undergraduate and postgraduate teaching, research guidance, examination, and academic activities. His interest in research reflects his belief that homoeopathy should continually evolve through observation, scientific inquiry, documentation, and evidence.
+
+For him, medicine is not merely about prescribing a remedy—it is about listening to the patient, understanding the individual, following the case carefully, and striving for meaningful improvement in quality of life.
+
+A clinician by passion. A teacher by purpose. A researcher by curiosity. And a physician committed to his patients.`,
     specializations: [
       'Constitutional Classical Homoeopathy',
       'Chronic Intractable Diseases',
@@ -28,7 +37,7 @@ export const CLINICS: ClinicLocation[] = [
     id: 'belgaum',
     name: "Dr. Dravid's Homoeopathic Clinic",
     tagline: 'Main Clinical Centre & Dispensary',
-    address: 'Yallur Road, Vadagaon, Opp. Kalpvruksh Hotel',
+    address: 'Patil Galli, Yallur Road, Vadagaon, Opp. Kalpvruksh Hotel',
     landmark: 'Opposite Kalpvruksh Hotel, Vadagaon',
     city: 'Belgaum (Belagavi)',
     state: 'Karnataka - 590005',

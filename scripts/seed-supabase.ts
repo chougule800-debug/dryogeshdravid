@@ -52,6 +52,7 @@ const PUBLIC_DIR = path.resolve(process.cwd(), 'public');
 const COLUMN_MAP: Record<string, Record<string, string>> = {
   doctors: {
     experienceYears: 'experience_years',
+    teachingExperienceYears: 'teaching_experience_years',
     academicAffiliation: 'academic_affiliation',
   },
   clinics: {

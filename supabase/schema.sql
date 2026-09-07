@@ -82,6 +82,7 @@ create table if not exists public.doctors (
   qualification text,
   role text,
   experience_years integer default 0,
+  teaching_experience_years integer default 0,
   image text,
   bio text,
   specializations text[] not null default '{}',
@@ -333,7 +334,7 @@ create table if not exists public.appointments (
   appointment_time text,
   health_concern text,
   consultation_type text,
-  status text not null default 'Confirmed',
+  status text not null default 'Tentative',
   email_reminder_sent boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
