@@ -6,8 +6,8 @@ export interface Doctor {
   designation: string;
   qualification: string;
   role: string;
-  experienceYears: number; // clinical practice
-  teachingExperienceYears?: number; // teaching experience
+  experienceYears: number;
+  teachingExperienceYears?: number;
   image: string;
   bio: string;
   specializations: string[];
@@ -29,7 +29,7 @@ export interface ClinicLocation {
   timings: string[];
   scheduleNote: string;
   isSpecialSchedule?: boolean;
-  specialRule?: string; // e.g. "Every Second Sunday 10am to 2pm"
+  specialRule?: string;
   mapQuery: string;
   googleMapEmbedUrl: string;
   whatsappNumber?: string;
@@ -73,26 +73,6 @@ export interface BlogPost {
   content: string;
   coverImage: string;
   tags: string[];
-}
-
-export type AppointmentStatus = 'Tentative' | 'Confirmed' | 'Completed' | 'Cancelled' | 'Rescheduled';
-
-export interface Appointment {
-  id: string;
-  patientName: string;
-  patientEmail: string;
-  patientPhone: string;
-  patientAge: number;
-  patientGender: 'Male' | 'Female' | 'Other';
-  branchId: ClinicBranchId;
-  doctorId: string;
-  appointmentDate: string; // YYYY-MM-DD
-  appointmentTime: string; // e.g. "10:30 AM"
-  healthConcern: string;
-  consultationType: 'In-Clinic' | 'Video/Online';
-  status: AppointmentStatus;
-  emailReminderSent: boolean;
-  createdAt: string;
 }
 
 export interface Testimonial {

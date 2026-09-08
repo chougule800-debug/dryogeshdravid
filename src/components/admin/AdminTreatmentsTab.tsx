@@ -14,13 +14,11 @@ import {
 interface AdminTreatmentsTabProps {
   services: ClinicalServiceItem[];
   onUpdateServices: (services: ClinicalServiceItem[]) => void;
-  onResetServices: () => void;
 }
 
 export const AdminTreatmentsTab: React.FC<AdminTreatmentsTabProps> = ({
   services,
   onUpdateServices,
-  onResetServices,
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);

@@ -7,14 +7,9 @@ export interface SupabaseCollectionState<T> {
   error: string | null;
 }
 
-/**
- * Subscribes to a Supabase table (initial fetch + Realtime refetch) and exposes the
- * data as temporary UI state. Supabase is the single source of truth — the UI is a
- * projection of whatever the query returns (including an empty array when the table
- * is empty). No local/hardcoded fallback is applied.
- */
 export function useSupabaseCollection<T extends { id: string }>(
-  table: string
+  table: string,
+  orderBy?: { column: string; ascending?: boolean }
 ): SupabaseCollectionState<T> {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -23,7 +18,7 @@ export function useSupabaseCollection<T extends { id: string }>(
   const onErrorRef = useRef<(msg: string) => void>(() => {});
 
   onDataRef.current = (items: T[]) => {
-    setData(items);
+    setData(items || []);
     setLoading(false);
     setError(null);
   };
@@ -39,13 +34,14 @@ export function useSupabaseCollection<T extends { id: string }>(
 
     const unsubscribe = subscribeSupabaseCollection<T>(
       table,
-      (items) => onDataRef.current(items),
-      (msg) => onErrorRef.current(msg)
+      (items) => onDataRef.current(items || []),
+      (msg) => onErrorRef.current(msg),
+      orderBy
     );
     return () => {
       if (typeof unsubscribe === 'function') unsubscribe();
     };
-  }, [table]);
+  }, [table, orderBy]);
 
   return { data, loading, error };
 }

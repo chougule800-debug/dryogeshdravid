@@ -111,22 +111,7 @@ const COLUMN_MAP: ColumnMap = {
     treatmentDuration: 'treatment_duration',
     date: 'date',
   },
-  appointments: {
-    patientName: 'patient_name',
-    patientEmail: 'patient_email',
-    patientPhone: 'patient_phone',
-    patientAge: 'patient_age',
-    patientGender: 'patient_gender',
-    branchId: 'branch_id',
-    doctorId: 'doctor_id',
-    appointmentDate: 'appointment_date',
-    appointmentTime: 'appointment_time',
-    healthConcern: 'health_concern',
-    consultationType: 'consultation_type',
-    status: 'status',
-    emailReminderSent: 'email_reminder_sent',
-    createdAt: 'created_at',
-  },
+  // appointments removed from mapping
 };
 
 const REVERSE_MAP: Record<string, Record<string, string>> = Object.fromEntries(
@@ -164,10 +149,15 @@ function fromRow<T>(table: string, row: Record<string, unknown>): T {
 // ---------------------------------------------------------------------------
 
 export async function fetchSupabaseCollection<T extends { id: string }>(
-  table: string
+  table: string,
+  orderBy?: { column: string; ascending?: boolean }
 ): Promise<T[]> {
   try {
-    const { data, error } = await supabase.from(table).select('*');
+    let query = supabase.from(table).select('*');
+    if (orderBy) {
+      query = query.order(orderBy.column, { ascending: orderBy.ascending ?? false });
+    }
+    const { data, error } = await query;
     if (error) throw error;
     return (data as unknown as Record<string, unknown>[]).map((row) => fromRow<T>(table, row));
   } catch (error) {
@@ -176,22 +166,21 @@ export async function fetchSupabaseCollection<T extends { id: string }>(
   }
 }
 
-/**
- * Subscribes to a Supabase table. Fetches the initial snapshot, then refetches the
- * whole collection whenever a row changes (insert/update/delete) via Supabase
- * Realtime. Always calls onData even when the collection becomes empty, so the UI
- * shows a proper empty state.
- */
 export function subscribeSupabaseCollection<T extends { id: string }>(
   table: string,
   onData: (data: T[]) => void,
-  onError?: (message: string) => void
+  onError?: (message: string) => void,
+  orderBy?: { column: string; ascending?: boolean }
 ): Unsubscribe {
   let unsubscribed = false;
 
   const fetchData = async () => {
     try {
-      const { data, error } = await supabase.from(table).select('*');
+      let query = supabase.from(table).select('*');
+      if (orderBy) {
+        query = query.order(orderBy.column, { ascending: orderBy.ascending ?? false });
+      }
+      const { data, error } = await query;
       if (unsubscribed) return;
       if (error) throw error;
       const mapped = (data as unknown as Record<string, unknown>[]).map((row) =>
@@ -255,7 +244,7 @@ export async function deleteDocumentFromSupabase(
 }
 
 // ---------------------------------------------------------------------------
-// SUPABASE STORAGE — image upload (throws on failure, no Base64 fallback)
+// SUPABASE STORAGE — image upload (throws on failure)
 // ---------------------------------------------------------------------------
 export async function uploadFileToStorage(
   file: File,

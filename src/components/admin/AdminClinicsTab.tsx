@@ -110,8 +110,9 @@ export const AdminClinicsTab: React.FC<AdminClinicsTabProps> = ({
               Clinic Branches, Timings & Contact Details
             </h3>
           </div>
+          {/* Updated description to First Sunday */}
           <p className="text-xs text-slate-600">
-            Manage official addresses, landmark directions, OPD consultation hours, Goa 2nd Sunday visit schedules, and phone numbers.
+            Manage official addresses, landmark directions, OPD consultation hours, Goa <strong>First Sunday</strong> visit schedules, and phone numbers.
           </p>
         </div>
       </div>
@@ -270,7 +271,7 @@ export const AdminClinicsTab: React.FC<AdminClinicsTabProps> = ({
                 <label className="font-bold text-slate-700 block mb-1">Special Schedule Rule (Goa)</label>
                 <input
                   type="text"
-                  placeholder="e.g. Every Second Sunday 10:00 AM - 3:00 PM"
+                  placeholder="e.g. Every First Sunday 10:00 AM - 3:00 PM"
                   value={formSpecialRule}
                   onChange={(e) => setFormSpecialRule(e.target.value)}
                   className="w-full p-2.5 rounded-xl border border-slate-300 bg-white"

@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Appointment, 
   PrePostCase, 
   GalleryItem, 
   BlogPost, 
@@ -29,44 +28,40 @@ import { PrePostGallery } from './components/PrePostGallery';
 import { GallerySection } from './components/GallerySection';
 import { BlogSection } from './components/BlogSection';
 import { TestimonialsMarquee } from './components/TestimonialsMarquee';
-import { AppointmentModal } from './components/AppointmentModal';
 import { AdminPanel } from './components/AdminPanel';
 import { Footer } from './components/Footer';
 import { WhatsAppChatBot } from './components/WhatsAppChatBot';
-import { 
-  Calendar, 
-  Star, 
-  Quote, 
-  Sparkles,
-  ArrowUp
-} from 'lucide-react';
+import { ContactToBookModal } from './components/ContactToBookModal';
+import { ArrowUp } from 'lucide-react';
 
 export default function App() {
-  // ------------------------------------------------------------------
-  // Supabase is the single source of truth. React state is a temporary
-  // projection of the real-time listeners — NOT a database.
-  // ------------------------------------------------------------------
-  const doctorsState = useSupabaseCollection<Doctor>('doctors');
-  const appointmentsState = useSupabaseCollection<Appointment>('appointments');
-  const prePostCasesState = useSupabaseCollection<PrePostCase>('prepost');
-  const galleryItemsState = useSupabaseCollection<GalleryItem>('gallery');
-  const blogPostsState = useSupabaseCollection<BlogPost>('blog');
-  const clinicsState = useSupabaseCollection<ClinicLocation>('clinics');
-  const servicesState = useSupabaseCollection<ClinicalServiceItem>('services');
-  const testimonialsState = useSupabaseCollection<Testimonial>('testimonials');
+  // Memoize orderBy objects to prevent infinite re-renders
+  const orderDoctors = useMemo(() => ({ column: 'created_at', ascending: false }), []);
+  const orderPrePost = useMemo(() => ({ column: 'created_at', ascending: false }), []);
+  const orderGallery = useMemo(() => ({ column: 'created_at', ascending: false }), []);
+  const orderBlog = useMemo(() => ({ column: 'created_at', ascending: false }), []);
+  const orderClinics = useMemo(() => ({ column: 'created_at', ascending: false }), []);
+  const orderServices = useMemo(() => ({ column: 'created_at', ascending: false }), []);
+  const orderTestimonials = useMemo(() => ({ column: 'created_at', ascending: false }), []);
 
-  const doctors = doctorsState.data;
-  const appointments = appointmentsState.data;
-  const prePostCases = prePostCasesState.data;
-  const galleryItems = galleryItemsState.data;
-  const blogPosts = blogPostsState.data;
-  const clinics = clinicsState.data;
-  const services = servicesState.data;
-  const testimonials = testimonialsState.data;
+  // Supabase collections with order
+  const doctorsState = useSupabaseCollection<Doctor>('doctors', orderDoctors);
+  const prePostCasesState = useSupabaseCollection<PrePostCase>('prepost', orderPrePost);
+  const galleryItemsState = useSupabaseCollection<GalleryItem>('gallery', orderGallery);
+  const blogPostsState = useSupabaseCollection<BlogPost>('blog', orderBlog);
+  const clinicsState = useSupabaseCollection<ClinicLocation>('clinics', orderClinics);
+  const servicesState = useSupabaseCollection<ClinicalServiceItem>('services', orderServices);
+  const testimonialsState = useSupabaseCollection<Testimonial>('testimonials', orderTestimonials);
 
-  // Admin auth — local login. Credentials live in the codebase (AdminPanel.tsx),
-  // not in .env or Supabase Auth. Only a boolean flag is remembered in sessionStorage
-  // so a refresh keeps the owner signed in; credentials are never persisted.
+  const doctors = doctorsState.data || [];
+  const prePostCases = prePostCasesState.data || [];
+  const galleryItems = galleryItemsState.data || [];
+  const blogPosts = blogPostsState.data || [];
+  const clinics = clinicsState.data || [];
+  const services = servicesState.data || [];
+  const testimonials = testimonialsState.data || [];
+
+  // Admin auth — local login.
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(
     () => sessionStorage.getItem('dr_admin_logged_in') === 'true'
   );
@@ -79,10 +74,16 @@ export default function App() {
     setIsAdminLoggedIn(false);
   };
 
-  // Modal controls
-  const [bookingModalOpen, setBookingModalOpen] = useState(false);
-  const [bookingBranch, setBookingBranch] = useState<ClinicBranchId>('belgaum');
-  const [bookingDoctorId, setBookingDoctorId] = useState<string | undefined>(undefined);
+  // Contact modal controls
+  const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [contactBranch, setContactBranch] = useState<ClinicBranchId>('belgaum');
+
+  const handleOpenContact = (branch: ClinicBranchId = 'belgaum') => {
+    setContactBranch(branch);
+    setContactModalOpen(true);
+  };
+
+  // Admin panel modal
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
@@ -95,9 +96,7 @@ export default function App() {
   }, []);
 
   // ------------------------------------------------------------------
-  // Admin CRUD — writes go straight to Supabase. The real-time listener
-  // updates the UI; there is no secondary local database and no optimistic
-  // setState. Each handler reports success so the UI can show an error.
+  // Admin CRUD — writes go straight to Supabase.
   // ------------------------------------------------------------------
   const handleUpdateDoctor = async (updatedDoctor: Doctor): Promise<boolean> =>
     saveDocumentToSupabase('doctors', updatedDoctor);
@@ -156,18 +155,10 @@ export default function App() {
     return results.every(Boolean);
   };
 
-  const handleUpdateAppointments = async (updatedAppts: Appointment[]): Promise<boolean> => {
-    const results = await Promise.all(
-      updatedAppts.map((a) => saveDocumentToSupabase('appointments', a))
-    );
-    return results.every(Boolean);
-  };
-
-  // Restore from an imported backup — write everything to Supabase.
+  // Restore from backup – write everything to Supabase (no appointments)
   const handleRestoreAllData = async (data: any): Promise<void> => {
     const writers: Promise<boolean>[] = [];
     if (data.doctors) for (const d of data.doctors) writers.push(saveDocumentToSupabase('doctors', d));
-    if (data.appointments) for (const a of data.appointments) writers.push(saveDocumentToSupabase('appointments', a));
     if (data.prePostCases) for (const c of data.prePostCases) writers.push(saveDocumentToSupabase('prepost', c));
     if (data.galleryItems) for (const g of data.galleryItems) writers.push(saveDocumentToSupabase('gallery', g));
     if (data.blogPosts) for (const b of data.blogPosts) writers.push(saveDocumentToSupabase('blog', b));
@@ -177,101 +168,79 @@ export default function App() {
     await Promise.all(writers);
   };
 
-  const handleOpenBooking = (branch: ClinicBranchId = 'belgaum', docId?: string) => {
-    setBookingBranch(branch);
-    if (docId) setBookingDoctorId(docId);
-    setBookingModalOpen(true);
-  };
-
-  const handleSaveAppointment = async (newAppt: Appointment): Promise<boolean> =>
-    saveDocumentToSupabase('appointments', newAppt);
-
   return (
     <div className="min-h-screen bg-[#FAF8F5] text-stone-800 flex flex-col selection:bg-emerald-200 selection:text-emerald-950 font-sans">
-      {/* Navigation Bar */}
       <Navbar
-        onOpenBooking={(branch) => handleOpenBooking(branch || 'belgaum')}
+        onContactClinic={(branch) => handleOpenContact(branch || 'belgaum')}
         onOpenAdmin={() => setAdminModalOpen(true)}
         isAdminLoggedIn={isAdminLoggedIn}
         clinics={clinics}
       />
 
-      {/* Main Content Sections */}
       <main className="flex-1">
-        {/* Hero Section */}
         <HeroSection
-          onBookAppointment={() => handleOpenBooking('belgaum')}
+          onContactClinic={() => handleOpenContact('belgaum')}
           onExploreCases={() => {
             const elem = document.getElementById('pre-post');
             elem?.scrollIntoView({ behavior: 'smooth' });
           }}
         />
 
-        {/* Doctors Section */}
         <DoctorsSection
           doctors={doctors}
           loading={doctorsState.loading}
           error={doctorsState.error}
-          onBookWithDoctor={(docId) => handleOpenBooking('belgaum', docId)}
+          onContactClinic={(docId) => handleOpenContact('belgaum')}
         />
 
-        {/* Clinics & Timings Section */}
         <ClinicsSection
           clinics={clinics}
           loading={clinicsState.loading}
           error={clinicsState.error}
-          onBookBranch={(branchId) => handleOpenBooking(branchId)}
+          onContactClinic={(branchId) => handleOpenContact(branchId)}
         />
 
-        {/* Clinical Treatments */}
         <TreatmentsSection
           services={services}
           loading={servicesState.loading}
           error={servicesState.error}
-          onConsultCategory={() => handleOpenBooking('belgaum')}
+          onContactClinic={() => handleOpenContact('belgaum')}
         />
 
-        {/* Pre & Post Cases (Before/After) */}
         <PrePostGallery
           cases={prePostCases}
           loading={prePostCasesState.loading}
           error={prePostCasesState.error}
-          onOpenBooking={() => handleOpenBooking('belgaum')}
+          onContactClinic={() => handleOpenContact('belgaum')}
         />
 
-        {/* Photo Gallery */}
         <GallerySection
           items={galleryItems}
           loading={galleryItemsState.loading}
           error={galleryItemsState.error}
-          onOpenBooking={() => handleOpenBooking('belgaum')}
         />
 
-        {/* Patient Testimonials Marquee (Flowing Left to Right) */}
         <TestimonialsMarquee
           testimonials={testimonials}
           loading={testimonialsState.loading}
           error={testimonialsState.error}
-          onOpenBooking={() => handleOpenBooking('belgaum')}
+          onContactClinic={() => handleOpenContact('belgaum')}
         />
 
-        {/* Blog & Educational Articles */}
         <BlogSection
           posts={blogPosts}
           loading={blogPostsState.loading}
           error={blogPostsState.error}
-          onOpenBooking={() => handleOpenBooking('belgaum')}
+          onContactClinic={() => handleOpenContact('belgaum')}
         />
       </main>
 
-      {/* Footer */}
       <Footer
-        onOpenBooking={() => handleOpenBooking('belgaum')}
+        onContactClinic={() => handleOpenContact('belgaum')}
         onOpenAdmin={() => setAdminModalOpen(true)}
         clinics={clinics}
       />
 
-      {/* Floating Scroll To Top on Left Side */}
       {showScrollTop && (
         <div className="fixed bottom-6 left-6 z-40">
           <button
@@ -284,18 +253,13 @@ export default function App() {
         </div>
       )}
 
-      {/* WhatsApp Chatbot Widget on Right Side */}
       <WhatsAppChatBot clinics={clinics} />
 
-      {/* Modals */}
-      <AppointmentModal
-        isOpen={bookingModalOpen}
-        onClose={() => setBookingModalOpen(false)}
-        initialBranch={bookingBranch}
-        initialDoctorId={bookingDoctorId}
-        doctors={doctors}
+      <ContactToBookModal
+        isOpen={contactModalOpen}
+        onClose={() => setContactModalOpen(false)}
         clinics={clinics}
-        onSaveAppointment={handleSaveAppointment}
+        initialBranch={contactBranch}
       />
 
       <AdminPanel
@@ -304,8 +268,6 @@ export default function App() {
         isAdminLoggedIn={isAdminLoggedIn}
         onAuthenticated={handleAdminLogin}
         onSignOut={handleAdminLogout}
-        appointments={appointments}
-        onUpdateAppointments={handleUpdateAppointments}
         doctors={doctors}
         onUpdateDoctor={handleUpdateDoctor}
         onAddDoctor={handleAddDoctor}

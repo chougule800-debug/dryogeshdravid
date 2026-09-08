@@ -20,10 +20,10 @@ interface DoctorsSectionProps {
   doctors?: Doctor[];
   loading?: boolean;
   error?: string | null;
-  onBookWithDoctor: (doctorId: string) => void;
+  onContactClinic: (doctorId: string) => void;
 }
 
-export const DoctorsSection: React.FC<DoctorsSectionProps> = ({ doctors = [], loading = false, error = null, onBookWithDoctor }) => {
+export const DoctorsSection: React.FC<DoctorsSectionProps> = ({ doctors = [], loading = false, error = null, onContactClinic }) => {
   const activeDoctors = doctors.filter(d => d.id === 'dr-yogesh-dravid' || !doctors.some(x => x.id === 'dr-yogesh-dravid'));
   const doctor = activeDoctors[0];
 

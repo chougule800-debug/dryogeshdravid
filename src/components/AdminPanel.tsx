@@ -3,7 +3,6 @@ import {
   Lock, 
   Unlock, 
   X, 
-  Calendar, 
   Stethoscope, 
   Images, 
   BookOpen, 
@@ -12,11 +11,9 @@ import {
   Activity, 
   Quote, 
   Database,
-  ArrowRight,
   ShieldCheck
 } from 'lucide-react';
 import { 
-  Appointment, 
   BlogPost, 
   ClinicLocation, 
   ClinicalServiceItem, 
@@ -26,7 +23,6 @@ import {
   Testimonial 
 } from '../types';
 import { AdminDoctorsTab } from './admin/AdminDoctorsTab';
-import { AdminAppointmentsTab } from './admin/AdminAppointmentsTab';
 import { AdminPrePostTab } from './admin/AdminPrePostTab';
 import { AdminGalleryTab } from './admin/AdminGalleryTab';
 import { AdminBlogTab } from './admin/AdminBlogTab';
@@ -35,8 +31,6 @@ import { AdminTreatmentsTab } from './admin/AdminTreatmentsTab';
 import { AdminTestimonialsTab } from './admin/AdminTestimonialsTab';
 import { AdminBackupTab } from './admin/AdminBackupTab';
 
-// Admin login credentials are stored here in the codebase only (per the owner's
-// explicit requirement). Never move these into .env, localStorage, or any store.
 const ADMIN_EMAIL = 'admin@doc.com';
 const ADMIN_PASSWORD = 'admin@123';
 
@@ -46,9 +40,6 @@ interface AdminPanelProps {
   isAdminLoggedIn: boolean;
   onAuthenticated: () => void;
   onSignOut: () => void;
-  // Appointments
-  appointments: Appointment[];
-  onUpdateAppointments: (appts: Appointment[]) => void;
   // Doctors
   doctors: Doctor[];
   onUpdateDoctor: (doc: Doctor) => void;
@@ -84,7 +75,6 @@ interface AdminPanelProps {
 
 export type AdminTabType = 
   | 'doctors' 
-  | 'appointments' 
   | 'prepost' 
   | 'gallery' 
   | 'blog' 
@@ -99,29 +89,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   isAdminLoggedIn,
   onAuthenticated,
   onSignOut,
-  appointments,
-  onUpdateAppointments,
-  doctors,
+  doctors = [],
   onUpdateDoctor,
   onAddDoctor,
   onDeleteDoctor,
-  prePostCases,
+  prePostCases = [],
   onAddPrePostCase,
   onUpdatePrePostCase,
   onDeletePrePostCase,
-  galleryItems,
+  galleryItems = [],
   onAddGalleryItem,
   onUpdateGalleryItem,
   onDeleteGalleryItem,
-  blogPosts,
+  blogPosts = [],
   onAddBlogPost,
   onUpdateBlogPost,
   onDeleteBlogPost,
-  clinics,
+  clinics = [],
   onUpdateClinics,
-  services,
+  services = [],
   onUpdateServices,
-  testimonials,
+  testimonials = [],
   onUpdateTestimonials,
   onRestoreAllData,
 }) => {
@@ -152,7 +140,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const navTabs: { id: AdminTabType; label: string; icon: any; count?: number }[] = [
     { id: 'doctors', label: 'Doctors & Faculty', icon: Stethoscope, count: doctors.length },
-    { id: 'appointments', label: 'Appointments', icon: Calendar, count: appointments.length },
     { id: 'prepost', label: 'Pre-Post Cases', icon: Sparkles, count: prePostCases.length },
     { id: 'gallery', label: 'Photo Gallery', icon: Images, count: galleryItems.length },
     { id: 'blog', label: 'Blog & Articles', icon: BookOpen, count: blogPosts.length },
@@ -165,28 +152,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/75 backdrop-blur-sm animate-fadeIn">
       <div className="bg-white w-full max-w-6xl h-[92vh] rounded-3xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden relative">
-        {/* Top Title Bar */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-900 text-white flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
-              <ShieldCheck className="w-5 h-5" />
+        {/* Top Title Bar - responsive padding */}
+        <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-slate-900 text-white flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold font-serif-display tracking-tight text-white">
-                  Clinic Administration & CMS Portal
+              <div className="flex items-center gap-1 sm:gap-2">
+                <h2 className="text-sm sm:text-lg font-bold font-serif-display tracking-tight text-white">
+                  Clinic Admin
                 </h2>
                 {isAdminLoggedIn ? (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                    Live Master Control
+                  <span className="text-[8px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    Live
                   </span>
                 ) : (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                    Protected
+                  <span className="text-[8px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    Locked
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-slate-400">
+              <p className="hidden sm:block text-[11px] text-slate-400">
                 Dr. Dravid's Homoeopathic Clinic &bull; Belgaum Main & Goa Quepem
               </p>
             </div>
@@ -197,26 +184,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <button
                 type="button"
                 onClick={handleLogout}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-colors cursor-pointer border border-slate-700"
+                className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[10px] sm:text-xs font-semibold transition-colors cursor-pointer border border-slate-700"
                 title="Lock Portal"
               >
-                <Lock className="w-3.5 h-3.5 text-amber-400" />
-                <span>Lock Portal</span>
+                <Lock className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">Lock Portal</span>
               </button>
             )}
 
             <button
               type="button"
               onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
               title="Close Admin Panel"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </div>
 
-        {/* Authentication Gate (if locked) */}
+        {/* Authentication Gate */}
         {!isAdminLoggedIn ? (
           <div className="flex-1 flex items-center justify-center p-6 bg-slate-50">
             <div className="w-full max-w-md p-8 bg-white rounded-3xl border border-slate-200 shadow-xl space-y-6 text-center">
@@ -269,8 +256,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           </div>
         ) : (
           <>
-            {/* Horizontal Tabs Header Bar */}
-            <div className="bg-slate-100/90 border-b border-slate-200 px-4 py-2 flex items-center gap-1.5 overflow-x-auto shrink-0 scrollbar-thin">
+            {/* Horizontal Tabs Header Bar - scrollable on mobile */}
+            <div className="bg-slate-100/90 border-b border-slate-200 px-2 sm:px-4 py-2 flex items-center gap-1 overflow-x-auto shrink-0 scrollbar-thin">
               {navTabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -280,16 +267,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id as AdminTabType)}
-                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+                    className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                       isActive
                         ? 'bg-white text-[#2D5A50] shadow-sm border border-slate-200/80 font-bold'
                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-medium'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-[#2D5A50]' : 'text-slate-400'}`} />
+                    <Icon className={`w-3 h-3 sm:w-4 sm:h-4 ${isActive ? 'text-[#2D5A50]' : 'text-slate-400'}`} />
                     <span>{tab.label}</span>
                     {tab.count !== undefined && (
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold ${
+                      <span className={`text-[8px] sm:text-[10px] px-1 py-0.2 rounded-full font-semibold ${
                         isActive ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-600'
                       }`}>
                         {tab.count}
@@ -308,14 +295,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   onUpdateDoctor={onUpdateDoctor}
                   onAddDoctor={onAddDoctor}
                   onDeleteDoctor={onDeleteDoctor}
-                />
-              )}
-
-              {activeTab === 'appointments' && (
-                <AdminAppointmentsTab
-                  appointments={appointments}
-                  doctors={doctors}
-                  onUpdateAppointments={onUpdateAppointments}
                 />
               )}
 
@@ -370,7 +349,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               {activeTab === 'backup' && (
                 <AdminBackupTab
                   doctors={doctors}
-                  appointments={appointments}
                   prePostCases={prePostCases}
                   galleryItems={galleryItems}
                   blogPosts={blogPosts}

@@ -1,28 +1,19 @@
 import React, { useState } from 'react';
 import { ClinicalServiceItem } from '../types';
-import { 
-  Sparkles, 
-  CheckCircle2, 
-  ArrowRight, 
-  Activity, 
-  HeartHandshake, 
-  ShieldCheck,
-  Stethoscope,
-  Info
-} from 'lucide-react';
+import { Sparkles, CheckCircle2, ArrowRight, Activity } from 'lucide-react';
 
 interface TreatmentsSectionProps {
   services?: ClinicalServiceItem[];
   loading?: boolean;
   error?: string | null;
-  onConsultCategory: (categoryTitle: string) => void;
+  onContactClinic: () => void;
 }
 
 export const TreatmentsSection: React.FC<TreatmentsSectionProps> = ({ 
   services = [], 
   loading = false,
   error = null,
-  onConsultCategory 
+  onContactClinic 
 }) => {
   const [selectedService, setSelectedService] = useState<number | null>(0);
 
@@ -42,22 +33,18 @@ export const TreatmentsSection: React.FC<TreatmentsSectionProps> = ({
   return (
     <section id="treatments" className="py-10 sm:py-14 bg-white border-b border-slate-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Section Title */}
-        <div className="text-center max-w-3xl mx-auto mb-8 space-y-2">
+        <div className="text-center max-w-3xl mx-auto mb-6 sm:mb-8 space-y-2">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-[#1C3F3A] text-xs font-bold uppercase tracking-wider border border-emerald-300">
             <Sparkles className="w-3.5 h-3.5 text-[#1C3F3A]" />
             <span className="text-[#1C3F3A]">Specialized Clinical Care</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight font-serif-display">
-            Conditions We Successfully Treat
-          </h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-950 tracking-tight font-serif-display">Conditions We Successfully Treat</h2>
           <p className="text-xs sm:text-sm text-slate-800 font-medium leading-relaxed">
             Homeopathy treats the patient who has the disease, not merely the disease in isolation. Our physiological-constitutional methodology restores systemic vitality.
           </p>
         </div>
 
-        {/* Services Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {error && (
             <div className="md:col-span-2 lg:col-span-3 p-10 rounded-3xl bg-slate-50 border border-slate-200 text-center">
               <p className="text-sm text-slate-500 font-semibold">Unable to load treatments from the server. Please try again.</p>
@@ -76,67 +63,49 @@ export const TreatmentsSection: React.FC<TreatmentsSectionProps> = ({
           {services.map((service, idx) => (
             <div
               key={service.id || idx}
-              className={`rounded-3xl border p-6 sm:p-7 transition-all flex flex-col justify-between cursor-pointer ${
+              className={`rounded-3xl border p-4 sm:p-7 transition-all flex flex-col justify-between cursor-pointer ${
                 selectedService === idx
                   ? 'border-emerald-500/50 bg-slate-50 shadow-md ring-1 ring-emerald-500/20'
                   : 'border-slate-200 bg-white hover:border-emerald-300 hover:shadow-md'
               }`}
               onClick={() => setSelectedService(idx)}
             >
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#1C3F3A] flex items-center justify-center font-bold">
-                    <Sparkles className="w-6 h-6" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-50 text-[#1C3F3A] flex items-center justify-center font-bold">
+                    <Sparkles className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
-                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-900 border border-slate-200">
-                    {service.highlight}
-                  </span>
+                  <span className="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-900 border border-slate-200">{service.highlight}</span>
                 </div>
-
-                <h3 className="text-xl font-bold text-slate-950 font-serif-display">
-                  {service.title}
-                </h3>
-
-                <p className="text-xs sm:text-sm text-slate-800 font-normal leading-relaxed">
-                  {service.description}
-                </p>
+                <h3 className="text-base sm:text-xl font-bold text-slate-950 font-serif-display">{service.title}</h3>
+                <p className="text-xs sm:text-sm text-slate-800 font-normal leading-relaxed">{service.description}</p>
               </div>
-
-              <div className="pt-6 mt-4 border-t border-slate-100 flex items-center justify-between">
+              <div className="pt-4 sm:pt-6 mt-3 sm:mt-4 border-t border-slate-100 flex items-center justify-between">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onConsultCategory(service.title);
+                    onContactClinic();
                   }}
-                  className="flex items-center gap-1.5 text-xs font-bold text-[#1C3F3A] hover:text-[#2D5A50] transition-colors cursor-pointer"
+                  className="flex items-center gap-1 text-[10px] sm:text-xs font-bold text-[#1C3F3A] hover:text-[#2D5A50] transition-colors cursor-pointer"
                 >
-                  <span>Book Consultation for this</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <span>Contact Clinic to Book</span>
+                  <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 </button>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Quick Tags of Conditions */}
-        <div className="mt-14 p-6 sm:p-8 rounded-3xl bg-slate-50 border border-slate-200">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="mt-10 sm:mt-14 p-4 sm:p-8 rounded-3xl bg-slate-50 border border-slate-200">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6">
             <div className="space-y-1 text-center md:text-left">
-              <h4 className="text-base sm:text-lg font-bold text-slate-950 font-serif-display">
-                Common Intractable Complaints Resolved:
-              </h4>
-              <p className="text-xs text-slate-800 font-medium">
-                Individualized remedies selected after thorough physiological case evaluation.
-              </p>
+              <h4 className="text-base sm:text-lg font-bold text-slate-950 font-serif-display">Common Intractable Complaints Resolved:</h4>
+              <p className="text-[10px] sm:text-xs text-slate-800 font-medium">Individualized remedies selected after thorough physiological case evaluation.</p>
             </div>
-
-            <div className="flex flex-wrap gap-2 justify-center md:justify-end max-w-2xl">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 justify-center md:justify-end max-w-2xl">
               {keyConditions.map((cond, i) => (
-                <span
-                  key={i}
-                  className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-900 shadow-2xs hover:border-emerald-400 hover:text-[#1C3F3A] transition-colors cursor-default"
-                >
-                  <CheckCircle2 className="w-3 h-3 text-emerald-700 font-bold" />
+                <span key={i} className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-1 rounded-xl bg-white border border-slate-200 text-slate-900 shadow-2xs hover:border-emerald-400 hover:text-[#1C3F3A] transition-colors cursor-default">
+                  <CheckCircle2 className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-700 font-bold" />
                   <span>{cond.name}</span>
                 </span>
               ))}
