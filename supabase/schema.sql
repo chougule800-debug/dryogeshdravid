@@ -1,26 +1,18 @@
 -- ============================================================================
 -- Supabase schema for Dr. Dravid's Homoeopathic Clinic
--- Idempotent. Run once in the Supabase SQL editor (or via `supabase db push`).
--- Sets up tables, Row Level Security, an is_admin() helper, Supabase Realtime,
--- and the public clinic-images storage bucket.
+-- Idempotent. Run once in the Supabase SQL editor.
 -- ============================================================================
 
--- ---------------------------------------------------------------------------
 -- auto updated_at trigger
--- ---------------------------------------------------------------------------
 create or replace function public.set_updated_at()
-returns trigger
-language plpgsql
-as $$
+returns trigger language plpgsql as $$
 begin
   new.updated_at = now();
   return new;
 end;
 $$;
 
--- ---------------------------------------------------------------------------
--- profiles (links to auth.users, holds the admin flag)
--- ---------------------------------------------------------------------------
+-- profiles (links to auth.users)
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
@@ -32,49 +24,31 @@ create table if not exists public.profiles (
 alter table public.profiles enable row level security;
 
 drop policy if exists "profiles_select_own" on public.profiles;
-create policy "profiles_select_own"
-  on public.profiles for select
-  using (auth.uid() = id);
-
+create policy "profiles_select_own" on public.profiles for select using (auth.uid() = id);
 drop policy if exists "profiles_insert_own" on public.profiles;
-create policy "profiles_insert_own"
-  on public.profiles for insert
-  with check (auth.uid() = id);
-
+create policy "profiles_insert_own" on public.profiles for insert with check (auth.uid() = id);
 drop policy if exists "profiles_update_own" on public.profiles;
-create policy "profiles_update_own"
-  on public.profiles for update
-  using (auth.uid() = id);
-
+create policy "profiles_update_own" on public.profiles for update using (auth.uid() = id);
 drop trigger if exists "profiles_set_updated_at" on public.profiles;
-create trigger "profiles_set_updated_at"
-  before update on public.profiles
-  for each row execute function public.set_updated_at();
+create trigger "profiles_set_updated_at" before update on public.profiles for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------------
--- is_admin() — SECURITY DEFINER so RLS on profiles does not recurse.
--- A user is admin if their JWT app_metadata carries the is_admin claim
--- (set by the project owner in Dashboard → Authentication → Users) OR an
--- is_admin = true row exists in public.profiles for that user.
--- ---------------------------------------------------------------------------
+-- is_admin() – uses auth.jwt() and profiles table
 create or replace function public.is_admin()
 returns boolean
 language sql
 security definer
 set search_path = public
 stable
-as $
+as $$
   select
     coalesce((auth.jwt() -> 'app_metadata' ->> 'is_admin')::boolean, false)
     or exists (
       select 1 from public.profiles p
       where p.id = auth.uid() and p.is_admin = true
     );
-$;
+$$;
 
--- ---------------------------------------------------------------------------
 -- doctors
--- ---------------------------------------------------------------------------
 create table if not exists public.doctors (
   id text primary key,
   name text not null,
@@ -93,24 +67,14 @@ create table if not exists public.doctors (
 );
 
 alter table public.doctors enable row level security;
-
 drop policy if exists "doctors_public_read" on public.doctors;
 create policy "doctors_public_read" on public.doctors for select using (true);
-
 drop policy if exists "doctors_admin_write" on public.doctors;
-create policy "doctors_admin_write"
-  on public.doctors for all
-  using (true)
-  with check (true);
-
+create policy "doctors_admin_write" on public.doctors for all using (public.is_admin()) with check (public.is_admin());
 drop trigger if exists "doctors_set_updated_at" on public.doctors;
-create trigger "doctors_set_updated_at"
-  before update on public.doctors
-  for each row execute function public.set_updated_at();
+create trigger "doctors_set_updated_at" before update on public.doctors for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------------
 -- clinics
--- ---------------------------------------------------------------------------
 create table if not exists public.clinics (
   id text primary key,
   name text,
@@ -135,24 +99,14 @@ create table if not exists public.clinics (
 );
 
 alter table public.clinics enable row level security;
-
 drop policy if exists "clinics_public_read" on public.clinics;
 create policy "clinics_public_read" on public.clinics for select using (true);
-
 drop policy if exists "clinics_admin_write" on public.clinics;
-create policy "clinics_admin_write"
-  on public.clinics for all
-  using (true)
-  with check (true);
-
+create policy "clinics_admin_write" on public.clinics for all using (public.is_admin()) with check (public.is_admin());
 drop trigger if exists "clinics_set_updated_at" on public.clinics;
-create trigger "clinics_set_updated_at"
-  before update on public.clinics
-  for each row execute function public.set_updated_at();
+create trigger "clinics_set_updated_at" before update on public.clinics for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------------
 -- services
--- ---------------------------------------------------------------------------
 create table if not exists public.services (
   id text primary key,
   icon text,
@@ -167,24 +121,14 @@ create table if not exists public.services (
 );
 
 alter table public.services enable row level security;
-
 drop policy if exists "services_public_read" on public.services;
 create policy "services_public_read" on public.services for select using (true);
-
 drop policy if exists "services_admin_write" on public.services;
-create policy "services_admin_write"
-  on public.services for all
-  using (true)
-  with check (true);
-
+create policy "services_admin_write" on public.services for all using (public.is_admin()) with check (public.is_admin());
 drop trigger if exists "services_set_updated_at" on public.services;
-create trigger "services_set_updated_at"
-  before update on public.services
-  for each row execute function public.set_updated_at();
+create trigger "services_set_updated_at" before update on public.services for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------------
 -- gallery
--- ---------------------------------------------------------------------------
 create table if not exists public.gallery (
   id text primary key,
   title text,
@@ -197,24 +141,14 @@ create table if not exists public.gallery (
 );
 
 alter table public.gallery enable row level security;
-
 drop policy if exists "gallery_public_read" on public.gallery;
 create policy "gallery_public_read" on public.gallery for select using (true);
-
 drop policy if exists "gallery_admin_write" on public.gallery;
-create policy "gallery_admin_write"
-  on public.gallery for all
-  using (true)
-  with check (true);
-
+create policy "gallery_admin_write" on public.gallery for all using (public.is_admin()) with check (public.is_admin());
 drop trigger if exists "gallery_set_updated_at" on public.gallery;
-create trigger "gallery_set_updated_at"
-  before update on public.gallery
-  for each row execute function public.set_updated_at();
+create trigger "gallery_set_updated_at" before update on public.gallery for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------------
 -- blog
--- ---------------------------------------------------------------------------
 create table if not exists public.blog (
   id text primary key,
   title text,
@@ -233,24 +167,14 @@ create table if not exists public.blog (
 );
 
 alter table public.blog enable row level security;
-
 drop policy if exists "blog_public_read" on public.blog;
 create policy "blog_public_read" on public.blog for select using (true);
-
 drop policy if exists "blog_admin_write" on public.blog;
-create policy "blog_admin_write"
-  on public.blog for all
-  using (true)
-  with check (true);
-
+create policy "blog_admin_write" on public.blog for all using (public.is_admin()) with check (public.is_admin());
 drop trigger if exists "blog_set_updated_at" on public.blog;
-create trigger "blog_set_updated_at"
-  before update on public.blog
-  for each row execute function public.set_updated_at();
+create trigger "blog_set_updated_at" before update on public.blog for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------------
 -- prepost
--- ---------------------------------------------------------------------------
 create table if not exists public.prepost (
   id text primary key,
   title text,
@@ -269,24 +193,14 @@ create table if not exists public.prepost (
 );
 
 alter table public.prepost enable row level security;
-
 drop policy if exists "prepost_public_read" on public.prepost;
 create policy "prepost_public_read" on public.prepost for select using (true);
-
 drop policy if exists "prepost_admin_write" on public.prepost;
-create policy "prepost_admin_write"
-  on public.prepost for all
-  using (true)
-  with check (true);
-
+create policy "prepost_admin_write" on public.prepost for all using (public.is_admin()) with check (public.is_admin());
 drop trigger if exists "prepost_set_updated_at" on public.prepost;
-create trigger "prepost_set_updated_at"
-  before update on public.prepost
-  for each row execute function public.set_updated_at();
+create trigger "prepost_set_updated_at" before update on public.prepost for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------------
 -- testimonials
--- ---------------------------------------------------------------------------
 create table if not exists public.testimonials (
   id text primary key,
   patient_name text,
@@ -303,24 +217,14 @@ create table if not exists public.testimonials (
 );
 
 alter table public.testimonials enable row level security;
-
 drop policy if exists "testimonials_public_read" on public.testimonials;
 create policy "testimonials_public_read" on public.testimonials for select using (true);
-
 drop policy if exists "testimonials_admin_write" on public.testimonials;
-create policy "testimonials_admin_write"
-  on public.testimonials for all
-  using (true)
-  with check (true);
-
+create policy "testimonials_admin_write" on public.testimonials for all using (public.is_admin()) with check (public.is_admin());
 drop trigger if exists "testimonials_set_updated_at" on public.testimonials;
-create trigger "testimonials_set_updated_at"
-  before update on public.testimonials
-  for each row execute function public.set_updated_at();
+create trigger "testimonials_set_updated_at" before update on public.testimonials for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------------
 -- appointments
--- ---------------------------------------------------------------------------
 create table if not exists public.appointments (
   id text primary key,
   patient_name text,
@@ -341,63 +245,43 @@ create table if not exists public.appointments (
 );
 
 alter table public.appointments enable row level security;
-
--- Public users may SUBMIT an appointment (insert) without reading others' rows.
 drop policy if exists "appointments_public_insert" on public.appointments;
-create policy "appointments_public_insert"
-  on public.appointments for insert
-  to anon, authenticated
-  with check (true);
-
--- Only admins may read or manage appointments (never expose patient data publicly).
+create policy "appointments_public_insert" on public.appointments for insert to anon, authenticated with check (true);
 drop policy if exists "appointments_admin_full" on public.appointments;
-create policy "appointments_admin_full"
-  on public.appointments for all
-  using (true)
-  with check (true);
-
+create policy "appointments_admin_full" on public.appointments for all using (public.is_admin()) with check (public.is_admin());
 drop trigger if exists "appointments_set_updated_at" on public.appointments;
-create trigger "appointments_set_updated_at"
-  before update on public.appointments
-  for each row execute function public.set_updated_at();
+create trigger "appointments_set_updated_at" before update on public.appointments for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------------
--- Supabase Realtime — enable change events + full row payload for DELETE
--- ---------------------------------------------------------------------------
+-- Realtime (add tables if not already in publication)
 do $$
 declare
   t text;
 begin
   foreach t in array array['profiles','doctors','clinics','services','gallery','blog','prepost','testimonials','appointments']
   loop
-    execute format('alter publication supabase_realtime add table public.%I', t);
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
     execute format('alter table public.%I replica identity full', t);
   end loop;
 end $$;
 
--- ---------------------------------------------------------------------------
--- Storage bucket + policies (clinic-images)
--- ---------------------------------------------------------------------------
-insert into storage.buckets (id, name, public)
-values ('clinic-images', 'clinic-images', true)
-on conflict (id) do nothing;
+-- Storage bucket & policies
+insert into storage.buckets (id, name, public) values ('clinic-images', 'clinic-images', true) on conflict (id) do nothing;
 
 drop policy if exists "clinic_images_public_read" on storage.objects;
-create policy "clinic_images_public_read"
-  on storage.objects for select
-  using (bucket_id = 'clinic-images');
+create policy "clinic_images_public_read" on storage.objects for select to public using (bucket_id = 'clinic-images');
 
-drop policy if exists "clinic_images_auth_insert" on storage.objects;
-create policy "clinic_images_auth_insert"
-  on storage.objects for insert
-  with check (bucket_id = 'clinic-images');
+drop policy if exists "clinic_images_anon_insert" on storage.objects;
+create policy "clinic_images_anon_insert" on storage.objects for insert to anon, authenticated with check (bucket_id = 'clinic-images');
 
-drop policy if exists "clinic_images_auth_update" on storage.objects;
-create policy "clinic_images_auth_update"
-  on storage.objects for update
-  using (bucket_id = 'clinic-images');
+drop policy if exists "clinic_images_anon_update" on storage.objects;
+create policy "clinic_images_anon_update" on storage.objects for update to anon, authenticated using (bucket_id = 'clinic-images');
 
-drop policy if exists "clinic_images_auth_delete" on storage.objects;
-create policy "clinic_images_auth_delete"
-  on storage.objects for delete
-  using (bucket_id = 'clinic-images');
+drop policy if exists "clinic_images_anon_delete" on storage.objects;
+create policy "clinic_images_anon_delete" on storage.objects for delete to anon, authenticated using (bucket_id = 'clinic-images');

@@ -1,27 +1,28 @@
-import React, { useState } from 'react';
-import { 
-  Lock, 
-  Unlock, 
-  X, 
-  Stethoscope, 
-  Images, 
-  BookOpen, 
-  Sparkles, 
-  Building2, 
-  Activity, 
-  Quote, 
+import React, { useState, useEffect } from 'react';
+import {
+  Lock,
+  Unlock,
+  X,
+  Stethoscope,
+  Images,
+  BookOpen,
+  Sparkles,
+  Building2,
+  Activity,
+  Quote,
   Database,
-  ShieldCheck
+  ShieldCheck,
 } from 'lucide-react';
-import { 
-  BlogPost, 
-  ClinicLocation, 
-  ClinicalServiceItem, 
-  Doctor, 
-  GalleryItem, 
-  PrePostCase, 
-  Testimonial 
+import {
+  BlogPost,
+  ClinicLocation,
+  ClinicalServiceItem,
+  Doctor,
+  GalleryItem,
+  PrePostCase,
+  Testimonial,
 } from '../types';
+import { supabase } from '../lib/supabase';
 import { AdminDoctorsTab } from './admin/AdminDoctorsTab';
 import { AdminPrePostTab } from './admin/AdminPrePostTab';
 import { AdminGalleryTab } from './admin/AdminGalleryTab';
@@ -30,9 +31,6 @@ import { AdminClinicsTab } from './admin/AdminClinicsTab';
 import { AdminTreatmentsTab } from './admin/AdminTreatmentsTab';
 import { AdminTestimonialsTab } from './admin/AdminTestimonialsTab';
 import { AdminBackupTab } from './admin/AdminBackupTab';
-
-const ADMIN_EMAIL = 'admin@doc.com';
-const ADMIN_PASSWORD = 'admin@123';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -65,22 +63,26 @@ interface AdminPanelProps {
   onUpdateClinics: (clinics: ClinicLocation[]) => void;
   // Services
   services: ClinicalServiceItem[];
-  onUpdateServices: (services: ClinicalServiceItem[]) => void;
+  onAddService: (s: ClinicalServiceItem) => void;
+  onUpdateService: (s: ClinicalServiceItem) => void;
+  onDeleteService: (id: string) => void;
   // Testimonials
   testimonials: Testimonial[];
-  onUpdateTestimonials: (testimonials: Testimonial[]) => void;
+  onAddTestimonial: (t: Testimonial) => void;
+  onUpdateTestimonial: (t: Testimonial) => void;
+  onDeleteTestimonial: (id: string) => void;
   // Restore
   onRestoreAllData: (data: any) => void;
 }
 
-export type AdminTabType = 
-  | 'doctors' 
-  | 'prepost' 
-  | 'gallery' 
-  | 'blog' 
-  | 'clinics' 
-  | 'treatments' 
-  | 'testimonials' 
+export type AdminTabType =
+  | 'doctors'
+  | 'prepost'
+  | 'gallery'
+  | 'blog'
+  | 'clinics'
+  | 'treatments'
+  | 'testimonials'
   | 'backup';
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
@@ -108,31 +110,76 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   clinics = [],
   onUpdateClinics,
   services = [],
-  onUpdateServices,
+  onAddService,
+  onUpdateService,
+  onDeleteService,
   testimonials = [],
-  onUpdateTestimonials,
+  onAddTestimonial,
+  onUpdateTestimonial,
+  onDeleteTestimonial,
   onRestoreAllData,
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<AdminTabType>('doctors');
+
+  // Check auth state on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session) {
+        // Verify admin status by calling is_admin() via RPC
+        const { data, error } = await supabase.rpc('is_admin');
+        if (data === true) {
+          onAuthenticated();
+        } else {
+          // User is not admin, sign out
+          await supabase.auth.signOut();
+        }
+      }
+    };
+    if (isOpen) {
+      checkSession();
+    }
+  }, [isOpen, onAuthenticated]);
 
   if (!isOpen) return null;
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
-    if (email.trim().toLowerCase() === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      setPassword('');
-      setAuthError('');
-      onAuthenticated();
-    } else {
-      setAuthError('Invalid email or password. Access denied.');
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password,
+      });
+      if (error) throw error;
+      // Check admin status
+      const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin');
+      if (adminError) throw adminError;
+      if (isAdmin) {
+        setPassword('');
+        setAuthError('');
+        onAuthenticated();
+      } else {
+        // Sign out if not admin
+        await supabase.auth.signOut();
+        setAuthError('You are not authorized as an administrator.');
+      }
+    } catch (err: any) {
+      setAuthError(err.message || 'Login failed.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
     setPassword('');
     setAuthError('');
     onSignOut();
@@ -210,16 +257,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               <div className="w-16 h-16 rounded-2xl bg-emerald-50 text-[#2D5A50] mx-auto flex items-center justify-center shadow-inner">
                 <Lock className="w-8 h-8" />
               </div>
-
               <div className="space-y-1">
                 <h3 className="text-xl font-bold text-slate-900 font-serif-display">
-                  Admin Sign In Required
+                  Admin Sign In
                 </h3>
                 <p className="text-xs text-slate-600 font-medium">
-                  Sign in with an authorized administrator account to manage clinic records, doctors, and content.
+                  Sign in with an authorized administrator account.
                 </p>
               </div>
-
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
                   <input
@@ -228,8 +273,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full text-center p-3 rounded-2xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2D5A50] text-slate-900"
-                    autoFocus
                     required
+                    autoFocus
                   />
                 </div>
                 <div>
@@ -243,13 +288,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   />
                   {authError && <p className="text-xs text-rose-600 font-bold mt-2">{authError}</p>}
                 </div>
-
                 <button
                   type="submit"
-                  className="w-full py-3.5 rounded-2xl bg-[#2D5A50] hover:bg-[#20423a] text-white font-bold text-sm shadow-md cursor-pointer flex items-center justify-center gap-2"
+                  disabled={loading}
+                  className="w-full py-3.5 rounded-2xl bg-[#2D5A50] hover:bg-[#20423a] text-white font-bold text-sm shadow-md cursor-pointer disabled:opacity-70 flex items-center justify-center gap-2"
                 >
-                  <Unlock className="w-4 h-4" />
-                  <span>Authenticate & Enter</span>
+                  {loading ? (
+                    'Authenticating...'
+                  ) : (
+                    <>
+                      <Unlock className="w-4 h-4" />
+                      <span>Sign In</span>
+                    </>
+                  )}
                 </button>
               </form>
             </div>
@@ -261,12 +312,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               {navTabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
-
                 return (
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => setActiveTab(tab.id as AdminTabType)}
+                    onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                       isActive
                         ? 'bg-white text-[#2D5A50] shadow-sm border border-slate-200/80 font-bold'
@@ -276,9 +326,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <Icon className={`w-3 h-3 sm:w-4 sm:h-4 ${isActive ? 'text-[#2D5A50]' : 'text-slate-400'}`} />
                     <span>{tab.label}</span>
                     {tab.count !== undefined && (
-                      <span className={`text-[8px] sm:text-[10px] px-1 py-0.2 rounded-full font-semibold ${
-                        isActive ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-600'
-                      }`}>
+                      <span
+                        className={`text-[8px] sm:text-[10px] px-1 py-0.2 rounded-full font-semibold ${
+                          isActive ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-600'
+                        }`}
+                      >
                         {tab.count}
                       </span>
                     )}
@@ -326,23 +378,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               )}
 
               {activeTab === 'clinics' && (
-                <AdminClinicsTab
-                  clinics={clinics}
-                  onUpdateClinics={onUpdateClinics}
-                />
+                <AdminClinicsTab clinics={clinics} onUpdateClinics={onUpdateClinics} />
               )}
 
               {activeTab === 'treatments' && (
                 <AdminTreatmentsTab
                   services={services}
-                  onUpdateServices={onUpdateServices}
+                  onAddService={onAddService}
+                  onUpdateService={onUpdateService}
+                  onDeleteService={onDeleteService}
                 />
               )}
 
               {activeTab === 'testimonials' && (
                 <AdminTestimonialsTab
                   testimonials={testimonials}
-                  onUpdateTestimonials={onUpdateTestimonials}
+                  onAddTestimonial={onAddTestimonial}
+                  onUpdateTestimonial={onUpdateTestimonial}
+                  onDeleteTestimonial={onDeleteTestimonial}
                 />
               )}
 

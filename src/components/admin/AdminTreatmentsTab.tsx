@@ -1,28 +1,33 @@
 import React, { useState } from 'react';
 import { ClinicalServiceItem } from '../../types';
-import { 
-  Sparkles, 
-  Plus, 
-  Trash2, 
-  Edit3, 
-  Check, 
-  X, 
-  CheckCircle, 
-  Activity 
+import {
+  Sparkles,
+  Plus,
+  Trash2,
+  Edit3,
+  Check,
+  X,
+  CheckCircle,
+  Activity,
 } from 'lucide-react';
 
 interface AdminTreatmentsTabProps {
   services: ClinicalServiceItem[];
-  onUpdateServices: (services: ClinicalServiceItem[]) => void;
+  onAddService: (s: ClinicalServiceItem) => Promise<boolean>;
+  onUpdateService: (s: ClinicalServiceItem) => Promise<boolean>;
+  onDeleteService: (id: string) => Promise<boolean>;
 }
 
 export const AdminTreatmentsTab: React.FC<AdminTreatmentsTabProps> = ({
   services,
-  onUpdateServices,
+  onAddService,
+  onUpdateService,
+  onDeleteService,
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Form State
   const [formTitle, setFormTitle] = useState('');
@@ -34,6 +39,10 @@ export const AdminTreatmentsTab: React.FC<AdminTreatmentsTabProps> = ({
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(''), 3500);
+  };
+  const showError = (msg: string) => {
+    setErrorMsg(msg);
+    setTimeout(() => setErrorMsg(''), 3500);
   };
 
   const handleStartEdit = (service: ClinicalServiceItem) => {
@@ -56,7 +65,7 @@ export const AdminTreatmentsTab: React.FC<AdminTreatmentsTabProps> = ({
     setFormConditions('');
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim() || !formDesc.trim()) {
       alert('Please fill in title and description.');
@@ -66,21 +75,22 @@ export const AdminTreatmentsTab: React.FC<AdminTreatmentsTabProps> = ({
     const conditionsArray = formConditions.split(',').map((c) => c.trim()).filter(Boolean);
 
     if (editingId) {
-      const updated = services.map((s) => {
-        if (s.id === editingId) {
-          return {
-            ...s,
-            title: formTitle.trim(),
-            highlight: formHighlight.trim(),
-            description: formDesc.trim(),
-            approach: formApproach.trim(),
-            conditions: conditionsArray.length > 0 ? conditionsArray : ['Constitutional Care'],
-          };
-        }
-        return s;
-      });
-      onUpdateServices(updated);
-      showSuccess(`Treatment specialty "${formTitle}" updated!`);
+      const updated: ClinicalServiceItem = {
+        id: editingId,
+        title: formTitle.trim(),
+        highlight: formHighlight.trim() || 'Clinical Specialty',
+        description: formDesc.trim(),
+        approach: formApproach.trim() || 'Constitutional Homoeopathy',
+        conditions: conditionsArray.length > 0 ? conditionsArray : ['Constitutional Care'],
+        iconName: 'Activity',
+      };
+      const ok = await onUpdateService(updated);
+      if (ok) {
+        showSuccess(`Treatment specialty "${formTitle}" updated!`);
+        setEditingId(null);
+      } else {
+        showError('Failed to update service. Check console.');
+      }
     } else {
       const newService: ClinicalServiceItem = {
         id: `svc-${Date.now().toString().slice(-4)}`,
@@ -91,18 +101,23 @@ export const AdminTreatmentsTab: React.FC<AdminTreatmentsTabProps> = ({
         conditions: conditionsArray.length > 0 ? conditionsArray : ['General Health'],
         iconName: 'Activity',
       };
-      onUpdateServices([...services, newService]);
-      showSuccess(`New treatment specialty "${formTitle}" added!`);
+      const ok = await onAddService(newService);
+      if (ok) {
+        showSuccess(`New treatment specialty "${formTitle}" added!`);
+        setIsAddingNew(false);
+      } else {
+        showError('Failed to add service. Check console.');
+      }
     }
-
-    setEditingId(null);
-    setIsAddingNew(false);
   };
 
-  const handleDelete = (id: string, title: string) => {
-    if (window.confirm(`Delete treatment specialty "${title}"?`)) {
-      onUpdateServices(services.filter((s) => s.id !== id));
+  const handleDelete = async (id: string, title: string) => {
+    if (!window.confirm(`Delete treatment specialty "${title}"?`)) return;
+    const ok = await onDeleteService(id);
+    if (ok) {
       showSuccess(`Service "${title}" deleted.`);
+    } else {
+      showError('Failed to delete service. Check console.');
     }
   };
 
@@ -140,6 +155,11 @@ export const AdminTreatmentsTab: React.FC<AdminTreatmentsTabProps> = ({
           <span>{successMsg}</span>
         </div>
       )}
+      {errorMsg && (
+        <div className="p-3.5 rounded-2xl bg-red-100 border border-red-300 text-red-900 text-xs sm:text-sm font-semibold flex items-center gap-2 animate-fadeIn">
+          <span>{errorMsg}</span>
+        </div>
+      )}
 
       {/* Add / Edit Form */}
       {(isAddingNew || editingId) && (
@@ -153,7 +173,10 @@ export const AdminTreatmentsTab: React.FC<AdminTreatmentsTabProps> = ({
             </div>
             <button
               type="button"
-              onClick={() => { setEditingId(null); setIsAddingNew(false); }}
+              onClick={() => {
+                setEditingId(null);
+                setIsAddingNew(false);
+              }}
               className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
             >
               <X className="w-4 h-4" />
@@ -173,7 +196,6 @@ export const AdminTreatmentsTab: React.FC<AdminTreatmentsTabProps> = ({
                   required
                 />
               </div>
-
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Highlight Badge</label>
                 <input
@@ -228,10 +250,12 @@ export const AdminTreatmentsTab: React.FC<AdminTreatmentsTabProps> = ({
                 <Check className="w-4 h-4" />
                 <span>{editingId ? 'Save Changes' : 'Add Specialty'}</span>
               </button>
-
               <button
                 type="button"
-                onClick={() => { setEditingId(null); setIsAddingNew(false); }}
+                onClick={() => {
+                  setEditingId(null);
+                  setIsAddingNew(false);
+                }}
                 className="px-4 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-700 text-xs sm:text-sm font-semibold cursor-pointer"
               >
                 Cancel
@@ -256,7 +280,6 @@ export const AdminTreatmentsTab: React.FC<AdminTreatmentsTabProps> = ({
                   </span>
                   <h4 className="text-base font-bold text-slate-900 mt-1">{s.title}</h4>
                 </div>
-
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
@@ -274,9 +297,7 @@ export const AdminTreatmentsTab: React.FC<AdminTreatmentsTabProps> = ({
                   </button>
                 </div>
               </div>
-
               <p className="text-xs text-slate-600 leading-relaxed">{s.description}</p>
-
               {s.conditions && (
                 <div className="flex flex-wrap gap-1 pt-1">
                   {s.conditions.map((c, i) => (

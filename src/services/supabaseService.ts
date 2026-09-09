@@ -16,8 +16,19 @@ export function handleSupabaseError(
   operationType: SupabaseOp,
   path: string | null
 ) {
-  const errMsg = error instanceof Error ? error.message : String(error);
-  console.warn(`Supabase [${operationType}] at "${path}":`, errMsg);
+  // Log full error details for debugging
+  if (error && typeof error === 'object' && 'message' in error) {
+    const err = error as any;
+    console.error(
+      `Supabase [${operationType}] at "${path}":`,
+      err.message,
+      err.details ? `\nDetails: ${err.details}` : '',
+      err.hint ? `\nHint: ${err.hint}` : '',
+      err.code ? `\nCode: ${err.code}` : ''
+    );
+  } else {
+    console.warn(`Supabase [${operationType}] at "${path}":`, error);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -221,7 +232,10 @@ export async function saveDocumentToSupabase<T extends { id: string }>(
   try {
     const row = toRow(table, data);
     const { error } = await supabase.from(table).upsert(row, { onConflict: 'id' });
-    if (error) throw error;
+    if (error) {
+      handleSupabaseError(error, SupabaseOp.WRITE, `${table}/${data.id}`);
+      return false;
+    }
     return true;
   } catch (error) {
     handleSupabaseError(error, SupabaseOp.WRITE, `${table}/${data.id}`);
@@ -235,7 +249,10 @@ export async function deleteDocumentFromSupabase(
 ): Promise<boolean> {
   try {
     const { error } = await supabase.from(table).delete().eq('id', id);
-    if (error) throw error;
+    if (error) {
+      handleSupabaseError(error, SupabaseOp.DELETE, `${table}/${id}`);
+      return false;
+    }
     return true;
   } catch (error) {
     handleSupabaseError(error, SupabaseOp.DELETE, `${table}/${id}`);
@@ -256,6 +273,7 @@ export async function uploadFileToStorage(
     .from(IMAGE_BUCKET)
     .upload(storagePath, file, { upsert: true });
   if (error) {
+    console.error('Storage upload error:', error);
     throw new Error(error.message);
   }
   return getPublicStorageUrl(storagePath);

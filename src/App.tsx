@@ -4,19 +4,19 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  PrePostCase, 
-  GalleryItem, 
-  BlogPost, 
+import {
+  PrePostCase,
+  GalleryItem,
+  BlogPost,
   Doctor,
   ClinicLocation,
   ClinicalServiceItem,
   Testimonial,
-  ClinicBranchId 
+  ClinicBranchId,
 } from './types';
-import { 
-  saveDocumentToSupabase, 
-  deleteDocumentFromSupabase 
+import {
+  saveDocumentToSupabase,
+  deleteDocumentFromSupabase,
 } from './services/supabaseService';
 import { useSupabaseCollection } from './hooks/useSupabaseCollection';
 import { Navbar } from './components/Navbar';
@@ -61,16 +61,14 @@ export default function App() {
   const services = servicesState.data || [];
   const testimonials = testimonialsState.data || [];
 
-  // Admin auth — local login.
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(
-    () => sessionStorage.getItem('dr_admin_logged_in') === 'true'
-  );
+  // Admin auth — managed by Supabase session in AdminPanel.
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+
   const handleAdminLogin = () => {
-    sessionStorage.setItem('dr_admin_logged_in', 'true');
     setIsAdminLoggedIn(true);
   };
+
   const handleAdminLogout = () => {
-    sessionStorage.removeItem('dr_admin_logged_in');
     setIsAdminLoggedIn(false);
   };
 
@@ -141,19 +139,25 @@ export default function App() {
     return results.every(Boolean);
   };
 
-  const handleUpdateServices = async (updatedServices: ClinicalServiceItem[]): Promise<boolean> => {
-    const results = await Promise.all(
-      updatedServices.map((s) => saveDocumentToSupabase('services', s))
-    );
-    return results.every(Boolean);
-  };
+  // Services handlers
+  const handleAddService = async (newService: ClinicalServiceItem): Promise<boolean> =>
+    saveDocumentToSupabase('services', newService);
 
-  const handleUpdateTestimonials = async (updatedTestimonials: Testimonial[]): Promise<boolean> => {
-    const results = await Promise.all(
-      updatedTestimonials.map((t) => saveDocumentToSupabase('testimonials', t))
-    );
-    return results.every(Boolean);
-  };
+  const handleUpdateService = async (updated: ClinicalServiceItem): Promise<boolean> =>
+    saveDocumentToSupabase('services', updated);
+
+  const handleDeleteService = async (id: string): Promise<boolean> =>
+    deleteDocumentFromSupabase('services', id);
+
+  // Testimonials handlers
+  const handleAddTestimonial = async (newTestimonial: Testimonial): Promise<boolean> =>
+    saveDocumentToSupabase('testimonials', newTestimonial);
+
+  const handleUpdateTestimonial = async (updated: Testimonial): Promise<boolean> =>
+    saveDocumentToSupabase('testimonials', updated);
+
+  const handleDeleteTestimonial = async (id: string): Promise<boolean> =>
+    deleteDocumentFromSupabase('testimonials', id);
 
   // Restore from backup – write everything to Supabase (no appointments)
   const handleRestoreAllData = async (data: any): Promise<void> => {
@@ -287,9 +291,13 @@ export default function App() {
         clinics={clinics}
         onUpdateClinics={handleUpdateClinics}
         services={services}
-        onUpdateServices={handleUpdateServices}
+        onAddService={handleAddService}
+        onUpdateService={handleUpdateService}
+        onDeleteService={handleDeleteService}
         testimonials={testimonials}
-        onUpdateTestimonials={handleUpdateTestimonials}
+        onAddTestimonial={handleAddTestimonial}
+        onUpdateTestimonial={handleUpdateTestimonial}
+        onDeleteTestimonial={handleDeleteTestimonial}
         onRestoreAllData={handleRestoreAllData}
       />
     </div>

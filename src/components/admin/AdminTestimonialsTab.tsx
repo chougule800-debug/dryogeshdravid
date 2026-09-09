@@ -1,28 +1,33 @@
 import React, { useState } from 'react';
 import { Testimonial } from '../../types';
-import { 
-  Star, 
-  Plus, 
-  Trash2, 
-  Edit3, 
-  Check, 
-  X, 
-  CheckCircle, 
-  Quote 
+import {
+  Star,
+  Plus,
+  Trash2,
+  Edit3,
+  Check,
+  X,
+  CheckCircle,
+  Quote,
 } from 'lucide-react';
 
 interface AdminTestimonialsTabProps {
   testimonials: Testimonial[];
-  onUpdateTestimonials: (testimonials: Testimonial[]) => void;
+  onAddTestimonial: (t: Testimonial) => Promise<boolean>;
+  onUpdateTestimonial: (t: Testimonial) => Promise<boolean>;
+  onDeleteTestimonial: (id: string) => Promise<boolean>;
 }
 
 export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
   testimonials,
-  onUpdateTestimonials,
+  onAddTestimonial,
+  onUpdateTestimonial,
+  onDeleteTestimonial,
 }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Form State
   const [formName, setFormName] = useState('');
@@ -36,6 +41,10 @@ export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(''), 3500);
+  };
+  const showError = (msg: string) => {
+    setErrorMsg(msg);
+    setTimeout(() => setErrorMsg(''), 3500);
   };
 
   const handleStartEdit = (item: Testimonial) => {
@@ -62,7 +71,7 @@ export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
     setFormComment('');
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim() || !formCondition.trim() || !formComment.trim()) {
       alert('Please provide patient name, condition treated, and feedback comment.');
@@ -70,24 +79,25 @@ export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
     }
 
     if (editingId) {
-      const updated = testimonials.map((t) => {
-        if (t.id === editingId) {
-          return {
-            ...t,
-            patientName: formName.trim(),
-            location: formLocation.trim(),
-            condition: formCondition.trim(),
-            treatedBy: formDoctor.trim(),
-            doctorConsulted: formDoctor.trim(),
-            treatmentDuration: formDuration.trim(),
-            rating: formRating,
-            comment: formComment.trim(),
-          };
-        }
-        return t;
-      });
-      onUpdateTestimonials(updated);
-      showSuccess(`Review from "${formName}" updated!`);
+      const updated: Testimonial = {
+        id: editingId,
+        patientName: formName.trim(),
+        location: formLocation.trim() || 'Karnataka',
+        condition: formCondition.trim(),
+        treatedBy: formDoctor.trim(),
+        doctorConsulted: formDoctor.trim(),
+        treatmentDuration: formDuration.trim() || '3 Months',
+        rating: formRating,
+        comment: formComment.trim(),
+        date: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      };
+      const ok = await onUpdateTestimonial(updated);
+      if (ok) {
+        showSuccess(`Review from "${formName}" updated!`);
+        setEditingId(null);
+      } else {
+        showError('Failed to update review. Check console.');
+      }
     } else {
       const newReview: Testimonial = {
         id: `rev-${Date.now().toString().slice(-4)}`,
@@ -101,18 +111,23 @@ export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
         comment: formComment.trim(),
         date: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
       };
-      onUpdateTestimonials([newReview, ...testimonials]);
-      showSuccess(`New review from "${formName}" added!`);
+      const ok = await onAddTestimonial(newReview);
+      if (ok) {
+        showSuccess(`New review from "${formName}" added!`);
+        setIsAddingNew(false);
+      } else {
+        showError('Failed to add review. Check console.');
+      }
     }
-
-    setEditingId(null);
-    setIsAddingNew(false);
   };
 
-  const handleDelete = (id: string, name: string) => {
-    if (window.confirm(`Delete review from "${name}"?`)) {
-      onUpdateTestimonials(testimonials.filter((t) => t.id !== id));
+  const handleDelete = async (id: string, name: string) => {
+    if (!window.confirm(`Delete review from "${name}"?`)) return;
+    const ok = await onDeleteTestimonial(id);
+    if (ok) {
       showSuccess('Review deleted.');
+    } else {
+      showError('Failed to delete review. Check console.');
     }
   };
 
@@ -150,6 +165,11 @@ export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
           <span>{successMsg}</span>
         </div>
       )}
+      {errorMsg && (
+        <div className="p-3.5 rounded-2xl bg-red-100 border border-red-300 text-red-900 text-xs sm:text-sm font-semibold flex items-center gap-2 animate-fadeIn">
+          <span>{errorMsg}</span>
+        </div>
+      )}
 
       {/* Add / Edit Form */}
       {(isAddingNew || editingId) && (
@@ -163,7 +183,10 @@ export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
             </div>
             <button
               type="button"
-              onClick={() => { setEditingId(null); setIsAddingNew(false); }}
+              onClick={() => {
+                setEditingId(null);
+                setIsAddingNew(false);
+              }}
               className="p-1 rounded-lg text-slate-400 hover:text-slate-700 cursor-pointer"
             >
               <X className="w-4 h-4" />
@@ -183,7 +206,6 @@ export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
                   required
                 />
               </div>
-
               <div>
                 <label className="font-bold text-slate-700 block mb-1">City / Region</label>
                 <input
@@ -194,7 +216,6 @@ export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
                   className="w-full p-2.5 rounded-xl border border-slate-300 bg-white"
                 />
               </div>
-
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Star Rating</label>
                 <select
@@ -220,7 +241,6 @@ export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
                   required
                 />
               </div>
-
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Doctor Consulted</label>
                 <input
@@ -231,7 +251,6 @@ export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
                   className="w-full p-2.5 rounded-xl border border-slate-300 bg-white"
                 />
               </div>
-
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Treatment Duration</label>
                 <input
@@ -264,10 +283,12 @@ export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
                 <Check className="w-4 h-4" />
                 <span>{editingId ? 'Save Review Changes' : 'Publish Review'}</span>
               </button>
-
               <button
                 type="button"
-                onClick={() => { setEditingId(null); setIsAddingNew(false); }}
+                onClick={() => {
+                  setEditingId(null);
+                  setIsAddingNew(false);
+                }}
                 className="px-4 py-2.5 rounded-xl bg-white border border-slate-300 text-slate-700 text-xs sm:text-sm font-semibold cursor-pointer"
               >
                 Cancel
@@ -295,7 +316,6 @@ export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
                   <h4 className="text-sm font-bold text-slate-900">{t.patientName}</h4>
                   <p className="text-[11px] text-slate-500">{t.location} &bull; {t.condition}</p>
                 </div>
-
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
@@ -313,10 +333,8 @@ export const AdminTestimonialsTab: React.FC<AdminTestimonialsTabProps> = ({
                   </button>
                 </div>
               </div>
-
               <p className="text-xs text-slate-600 italic leading-relaxed">"{t.comment}"</p>
             </div>
-
             <div className="text-[11px] text-slate-400 pt-2 border-t border-slate-100 flex items-center justify-between">
               <span>Doctor: {t.treatedBy || t.doctorConsulted || 'Dr. Dravid'}</span>
               <span>Duration: {t.treatmentDuration}</span>
