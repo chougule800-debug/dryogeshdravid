@@ -1,4 +1,5 @@
 export type ClinicBranchId = 'belgaum' | 'goa';
+export type MediaType = 'image' | 'video';
 
 export interface Doctor {
   id: string;
@@ -40,11 +41,20 @@ export interface PrePostCase {
   id: string;
   title: string;
   condition: string;
-  category: 'Skin' | 'Hair' | 'Respiratory' | 'Pediatric' | 'Joint & Musculoskeletal' | 'Gastrointestinal' | 'Chronic';
+  category:
+    | 'Skin'
+    | 'Hair'
+    | 'Respiratory'
+    | 'Pediatric'
+    | 'Joint & Musculoskeletal'
+    | 'Gastrointestinal'
+    | 'Chronic';
   patientAgeGender: string;
   durationOfTreatment: string;
-  beforeImage: string;
-  afterImage: string;
+  beforeMediaType: MediaType;
+  beforeMediaUrl: string;
+  afterMediaType: MediaType;
+  afterMediaUrl: string;
   remedyPrescribed: string;
   description: string;
   outcomeNotes: string;
@@ -55,7 +65,8 @@ export interface GalleryItem {
   id: string;
   title: string;
   category: 'Clinic' | 'Pharmacy' | 'Consultation' | 'Academic' | 'Events';
-  imageUrl: string;
+  mediaType: MediaType;
+  mediaUrl: string;
   caption: string;
   date?: string;
 }
@@ -71,7 +82,8 @@ export interface BlogPost {
   readTime: string;
   excerpt: string;
   content: string;
-  coverImage: string;
+  mediaType: MediaType;
+  mediaUrl: string;
   tags: string[];
 }
 

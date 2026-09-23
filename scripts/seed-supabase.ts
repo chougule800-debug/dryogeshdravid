@@ -4,17 +4,6 @@
  * Usage:
  *   SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
  *   npm run seed:supabase
- *
- * - Reads the canonical seed data from src/data/initialData.ts.
- * - Uploads any /images/* files referenced by the seed data into Supabase
- *   Storage (bucket: clinic-images) and rewrites those record URLs to the
- *   public Storage URL. External URL values are kept as-is.
- * - Upserts every record into the matching table.
- *
- * Admin accounts are created by the project owner through the Supabase Dashboard
- * (Authentication → Users), not by this script. The runtime website does NOT seed
- * anything — Supabase is the single source of truth. This is a developer-only,
- * one-time tool.
  */
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
@@ -42,7 +31,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
-  realtime: { transport: ws as any }, // Node 20 has no native WebSocket; use the ws package
+  realtime: { transport: ws as any },
 });
 
 const BUCKET = 'clinic-images';
@@ -65,18 +54,24 @@ const COLUMN_MAP: Record<string, Record<string, string>> = {
     whatsappNumber: 'whatsapp_number',
   },
   services: { iconName: 'icon_name' },
-  gallery: { imageUrl: 'image_url' },
+  gallery: {
+    mediaType: 'media_type',
+    mediaUrl: 'media_url',
+  },
   blog: {
     authorRole: 'author_role',
     publishedDate: 'published_date',
     readTime: 'read_time',
-    coverImage: 'cover_image',
+    mediaType: 'media_type',
+    mediaUrl: 'media_url',
   },
   prepost: {
     patientAgeGender: 'patient_age_gender',
     durationOfTreatment: 'duration_of_treatment',
-    beforeImage: 'before_image',
-    afterImage: 'after_image',
+    beforeMediaType: 'before_media_type',
+    beforeMediaUrl: 'before_media_url',
+    afterMediaType: 'after_media_type',
+    afterMediaUrl: 'after_media_url',
     remedyPrescribed: 'remedy_prescribed',
     outcomeNotes: 'outcome_notes',
     dateAdded: 'date_added',
@@ -109,7 +104,6 @@ function toRow(table: string, data: Record<string, unknown>): Record<string, unk
   const row: Record<string, unknown> = { id: data.id };
   for (const [key, value] of Object.entries(data)) {
     if (key === 'id' || value === undefined) continue;
-    // Fields with a mapping get the snake_case column name; identical fields pass through.
     row[map[key] ?? key] = value;
   }
   return row;
@@ -117,11 +111,24 @@ function toRow(table: string, data: Record<string, unknown>): Record<string, unk
 
 function extToMime(name: string): string {
   const ext = name.split('.').pop()?.toLowerCase() || 'jpg';
-  return ({ jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', svg: 'image/svg+xml' } as Record<string, string>)[ext] || 'application/octet-stream';
+  return (
+    (
+      {
+        jpg: 'image/jpeg',
+        jpeg: 'image/jpeg',
+        png: 'image/png',
+        webp: 'image/webp',
+        svg: 'image/svg+xml',
+      } as Record<string, string>
+    )[ext] || 'application/octet-stream'
+  );
 }
 
 /** If value is a local /images/... path, upload it to Storage and return the public URL. */
-async function resolveImage(value: string | undefined, folder: string): Promise<string | undefined> {
+async function resolveImage(
+  value: string | undefined,
+  folder: string
+): Promise<string | undefined> {
   if (!value) return value;
   if (!value.startsWith('/images/')) return value;
 
@@ -174,9 +181,25 @@ async function seedServices() {
 async function seedPrePost() {
   const rows = [];
   for (const c of INITIAL_PRE_POST_CASES) {
-    const before = await resolveImage(c.beforeImage, 'prepost');
-    const after = await resolveImage(c.afterImage, 'prepost');
-    rows.push(toRow('prepost', { ...c, beforeImage: before, afterImage: after }));
+    const beforeMediaUrl =
+      c.beforeMediaType === 'image'
+        ? await resolveImage(c.beforeMediaUrl, 'prepost/images')
+        : c.beforeMediaUrl;
+    const afterMediaUrl =
+      c.afterMediaType === 'image'
+        ? await resolveImage(c.afterMediaUrl, 'prepost/images')
+        : c.afterMediaUrl;
+
+    rows.push(
+      toRow('prepost', {
+        ...c,
+        beforeMediaUrl,
+        afterMediaUrl,
+        // Mirror legacy columns when the media is an image.
+        beforeImage: c.beforeMediaType === 'image' ? beforeMediaUrl : undefined,
+        afterImage: c.afterMediaType === 'image' ? afterMediaUrl : undefined,
+      })
+    );
   }
   const { error } = await supabase.from('prepost').upsert(rows, { onConflict: 'id' });
   if (error) throw error;
@@ -186,8 +209,17 @@ async function seedPrePost() {
 async function seedGallery() {
   const rows = [];
   for (const g of INITIAL_GALLERY) {
-    const imageUrl = await resolveImage(g.imageUrl, 'gallery');
-    rows.push(toRow('gallery', { ...g, imageUrl }));
+    const mediaUrl =
+      g.mediaType === 'image'
+        ? await resolveImage(g.mediaUrl, 'gallery/images')
+        : g.mediaUrl;
+    rows.push(
+      toRow('gallery', {
+        ...g,
+        mediaUrl,
+        imageUrl: g.mediaType === 'image' ? mediaUrl : undefined,
+      })
+    );
   }
   const { error } = await supabase.from('gallery').upsert(rows, { onConflict: 'id' });
   if (error) throw error;
@@ -197,8 +229,17 @@ async function seedGallery() {
 async function seedBlog() {
   const rows = [];
   for (const b of INITIAL_BLOG_POSTS) {
-    const cover = await resolveImage(b.coverImage, 'blog');
-    rows.push(toRow('blog', { ...b, coverImage: cover }));
+    const mediaUrl =
+      b.mediaType === 'image'
+        ? await resolveImage(b.mediaUrl, 'blog/images')
+        : b.mediaUrl;
+    rows.push(
+      toRow('blog', {
+        ...b,
+        mediaUrl,
+        coverImage: b.mediaType === 'image' ? mediaUrl : undefined,
+      })
+    );
   }
   const { error } = await supabase.from('blog').upsert(rows, { onConflict: 'id' });
   if (error) throw error;

@@ -285,3 +285,37 @@ create policy "clinic_images_anon_update" on storage.objects for update to anon,
 
 drop policy if exists "clinic_images_anon_delete" on storage.objects;
 create policy "clinic_images_anon_delete" on storage.objects for delete to anon, authenticated using (bucket_id = 'clinic-images');
+
+-- ============================================================================
+-- Media type / URL migrations (image | video) — additive, backward compatible
+-- ============================================================================
+
+-- Pre-Post
+alter table public.prepost add column if not exists before_media_type text not null default 'image';
+alter table public.prepost add column if not exists before_media_url  text;
+alter table public.prepost add column if not exists after_media_type  text not null default 'image';
+alter table public.prepost add column if not exists after_media_url   text;
+
+update public.prepost set before_media_url = before_image
+  where before_media_url is null and before_image is not null;
+update public.prepost set after_media_url = after_image
+  where after_media_url is null and after_image is not null;
+
+-- Gallery
+alter table public.gallery add column if not exists media_type text not null default 'image';
+alter table public.gallery add column if not exists media_url  text;
+
+update public.gallery set media_url = image_url
+  where media_url is null and image_url is not null;
+
+-- Blog
+alter table public.blog add column if not exists media_type text not null default 'image';
+alter table public.blog add column if not exists media_url  text;
+
+update public.blog set media_url = cover_image
+  where media_url is null and cover_image is not null;
+
+-- Allow larger uploads (videos). Bucket stays public.
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('clinic-images', 'clinic-images', true, 52428800)
+on conflict (id) do update set file_size_limit = 52428800;
