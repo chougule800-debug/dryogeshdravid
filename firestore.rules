@@ -1,0 +1,166 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // -----------------------------------------------------------------------
+    // Helper Functions
+    // -----------------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        ('is_admin' in request.auth.token && request.auth.token.is_admin == true) ||
+        (
+          exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.get('isAdmin', false) == true
+        )
+      );
+    }
+
+    function isNonEmptyString(val) {
+      return val is string && val.size() > 0;
+    }
+
+    function isValidMediaType(val) {
+      return val in ['image', 'video'];
+    }
+
+    // -----------------------------------------------------------------------
+    // User Profiles (RBAC / Admin Lookup)
+    // -----------------------------------------------------------------------
+    match /profiles/{uid} {
+      allow read: if isSignedIn() && (request.auth.uid == uid || isAdmin());
+
+      // Users can create their own non-admin profile only; prevents role escalation.
+      allow create: if isAdmin() || (
+        isSignedIn() &&
+        request.auth.uid == uid &&
+        request.resource.data.keys().hasOnly(['id', 'email', 'isAdmin', 'createdAt', 'updatedAt']) &&
+        request.resource.data.id == uid &&
+        request.resource.data.isAdmin == false
+      );
+
+      // Users can update only their own email without elevating isAdmin or changing id.
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        request.auth.uid == uid &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.isAdmin == resource.data.isAdmin &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['email', 'updatedAt'])
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // -----------------------------------------------------------------------
+    // Public Clinic Content Collections (Public Read, Admin-Only Write)
+    // -----------------------------------------------------------------------
+    match /doctors/{docId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.id == docId
+        && isNonEmptyString(request.resource.data.name);
+      allow delete: if isAdmin();
+    }
+
+    match /clinics/{docId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.id == docId
+        && isNonEmptyString(request.resource.data.name);
+      allow delete: if isAdmin();
+    }
+
+    match /services/{docId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.id == docId
+        && isNonEmptyString(request.resource.data.title);
+      allow delete: if isAdmin();
+    }
+
+    match /gallery/{docId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.id == docId
+        && isNonEmptyString(request.resource.data.title)
+        && isValidMediaType(request.resource.data.mediaType)
+        && isNonEmptyString(request.resource.data.mediaUrl);
+      allow delete: if isAdmin();
+    }
+
+    match /blog/{docId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.id == docId
+        && isNonEmptyString(request.resource.data.title)
+        && isNonEmptyString(request.resource.data.content)
+        && isValidMediaType(request.resource.data.mediaType)
+        && isNonEmptyString(request.resource.data.mediaUrl);
+      allow delete: if isAdmin();
+    }
+
+    match /prepost/{docId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.id == docId
+        && isNonEmptyString(request.resource.data.title)
+        && isValidMediaType(request.resource.data.beforeMediaType)
+        && isNonEmptyString(request.resource.data.beforeMediaUrl)
+        && isValidMediaType(request.resource.data.afterMediaType)
+        && isNonEmptyString(request.resource.data.afterMediaUrl);
+      allow delete: if isAdmin();
+    }
+
+    match /testimonials/{docId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.id == docId
+        && isNonEmptyString(request.resource.data.patientName)
+        && isNonEmptyString(request.resource.data.comment)
+        && request.resource.data.rating is number
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+      allow delete: if isAdmin();
+    }
+
+    // -----------------------------------------------------------------------
+    // Firestore-Only Chunked Media Assets (Photos/Videos > inline threshold)
+    // -----------------------------------------------------------------------
+    match /media_assets/{assetId} {
+      allow read: if resource.data.get('isPublic', true) == true || isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.data.id == assetId
+        && request.resource.data.totalChunks is int
+        && request.resource.data.totalChunks >= 1
+        && isNonEmptyString(request.resource.data.contentType);
+      allow delete: if isAdmin();
+
+      match /chunks/{chunkId} {
+        allow read: if get(/databases/$(database)/documents/media_assets/$(assetId)).data.get('isPublic', true) == true || isAdmin();
+        allow create, update: if isAdmin()
+          && request.resource.data.index is int
+          && request.resource.data.index >= 0
+          && request.resource.data.data is string
+          && request.resource.data.data.size() <= 750000;
+        allow delete: if isAdmin();
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // Historical Patient Appointments (Sensitive PII — Strictly Admin Only)
+    // -----------------------------------------------------------------------
+    match /appointments/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // -----------------------------------------------------------------------
+    // Default Deny Everything Else
+    // -----------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

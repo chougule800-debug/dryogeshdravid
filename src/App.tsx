@@ -15,10 +15,13 @@ import {
   ClinicBranchId,
 } from './types';
 import {
-  saveDocumentToSupabase,
-  deleteDocumentFromSupabase,
-} from './services/supabaseService';
-import { useSupabaseCollection } from './hooks/useSupabaseCollection';
+  saveDocumentToFirestore,
+  deleteDocumentFromFirestore,
+  restoreClinicDataToFirestore,
+  subscribeAdminAuth,
+  RestorePayload,
+} from './services/firebaseService';
+import { useFirestoreCollection } from './hooks/useFirestoreCollection';
 import { Navbar } from './components/Navbar';
 import { HeroSection } from './components/HeroSection';
 import { DoctorsSection } from './components/DoctorsSection';
@@ -36,22 +39,22 @@ import { ArrowUp } from 'lucide-react';
 
 export default function App() {
   // Memoize orderBy objects to prevent infinite re-renders
-  const orderDoctors = useMemo(() => ({ column: 'created_at', ascending: false }), []);
-  const orderPrePost = useMemo(() => ({ column: 'created_at', ascending: false }), []);
-  const orderGallery = useMemo(() => ({ column: 'created_at', ascending: false }), []);
-  const orderBlog = useMemo(() => ({ column: 'created_at', ascending: false }), []);
-  const orderClinics = useMemo(() => ({ column: 'created_at', ascending: false }), []);
-  const orderServices = useMemo(() => ({ column: 'created_at', ascending: false }), []);
-  const orderTestimonials = useMemo(() => ({ column: 'created_at', ascending: false }), []);
+  const orderDoctors = useMemo(() => ({ field: 'createdAt', ascending: false }), []);
+  const orderPrePost = useMemo(() => ({ field: 'createdAt', ascending: false }), []);
+  const orderGallery = useMemo(() => ({ field: 'createdAt', ascending: false }), []);
+  const orderBlog = useMemo(() => ({ field: 'createdAt', ascending: false }), []);
+  const orderClinics = useMemo(() => ({ field: 'createdAt', ascending: false }), []);
+  const orderServices = useMemo(() => ({ field: 'createdAt', ascending: false }), []);
+  const orderTestimonials = useMemo(() => ({ field: 'createdAt', ascending: false }), []);
 
-  // Supabase collections with order
-  const doctorsState = useSupabaseCollection<Doctor>('doctors', orderDoctors);
-  const prePostCasesState = useSupabaseCollection<PrePostCase>('prepost', orderPrePost);
-  const galleryItemsState = useSupabaseCollection<GalleryItem>('gallery', orderGallery);
-  const blogPostsState = useSupabaseCollection<BlogPost>('blog', orderBlog);
-  const clinicsState = useSupabaseCollection<ClinicLocation>('clinics', orderClinics);
-  const servicesState = useSupabaseCollection<ClinicalServiceItem>('services', orderServices);
-  const testimonialsState = useSupabaseCollection<Testimonial>('testimonials', orderTestimonials);
+  // Firestore real-time collections with bounded queries & offline cache
+  const doctorsState = useFirestoreCollection<Doctor>('doctors', orderDoctors);
+  const prePostCasesState = useFirestoreCollection<PrePostCase>('prepost', orderPrePost);
+  const galleryItemsState = useFirestoreCollection<GalleryItem>('gallery', orderGallery);
+  const blogPostsState = useFirestoreCollection<BlogPost>('blog', orderBlog);
+  const clinicsState = useFirestoreCollection<ClinicLocation>('clinics', orderClinics);
+  const servicesState = useFirestoreCollection<ClinicalServiceItem>('services', orderServices);
+  const testimonialsState = useFirestoreCollection<Testimonial>('testimonials', orderTestimonials);
 
   const doctors = doctorsState.data || [];
   const prePostCases = prePostCasesState.data || [];
@@ -61,8 +64,15 @@ export default function App() {
   const services = servicesState.data || [];
   const testimonials = testimonialsState.data || [];
 
-  // Admin auth — managed by Supabase session in AdminPanel.
+  // Admin auth — synchronized with Firebase Auth session & admin claims/profile.
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = subscribeAdminAuth(({ isAdmin }) => {
+      setIsAdminLoggedIn(isAdmin);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const handleAdminLogin = () => {
     setIsAdminLoggedIn(true);
@@ -94,82 +104,74 @@ export default function App() {
   }, []);
 
   // ------------------------------------------------------------------
-  // Admin CRUD — writes go straight to Supabase.
+  // Admin CRUD — writes go straight to Cloud Firestore.
   // ------------------------------------------------------------------
   const handleUpdateDoctor = async (updatedDoctor: Doctor): Promise<boolean> =>
-    saveDocumentToSupabase('doctors', updatedDoctor);
+    saveDocumentToFirestore('doctors', updatedDoctor);
 
   const handleAddDoctor = async (newDoctor: Doctor): Promise<boolean> =>
-    saveDocumentToSupabase('doctors', newDoctor);
+    saveDocumentToFirestore('doctors', newDoctor);
 
   const handleDeleteDoctor = async (id: string): Promise<boolean> =>
-    deleteDocumentFromSupabase('doctors', id);
+    deleteDocumentFromFirestore('doctors', id);
 
   const handleAddPrePostCase = async (newCase: PrePostCase): Promise<boolean> =>
-    saveDocumentToSupabase('prepost', newCase);
+    saveDocumentToFirestore('prepost', newCase);
 
   const handleUpdatePrePostCase = async (updated: PrePostCase): Promise<boolean> =>
-    saveDocumentToSupabase('prepost', updated);
+    saveDocumentToFirestore('prepost', updated);
 
   const handleDeletePrePostCase = async (id: string): Promise<boolean> =>
-    deleteDocumentFromSupabase('prepost', id);
+    deleteDocumentFromFirestore('prepost', id);
 
   const handleAddGalleryItem = async (newItem: GalleryItem): Promise<boolean> =>
-    saveDocumentToSupabase('gallery', newItem);
+    saveDocumentToFirestore('gallery', newItem);
 
   const handleUpdateGalleryItem = async (updated: GalleryItem): Promise<boolean> =>
-    saveDocumentToSupabase('gallery', updated);
+    saveDocumentToFirestore('gallery', updated);
 
   const handleDeleteGalleryItem = async (id: string): Promise<boolean> =>
-    deleteDocumentFromSupabase('gallery', id);
+    deleteDocumentFromFirestore('gallery', id);
 
   const handleAddBlogPost = async (newPost: BlogPost): Promise<boolean> =>
-    saveDocumentToSupabase('blog', newPost);
+    saveDocumentToFirestore('blog', newPost);
 
   const handleUpdateBlogPost = async (updated: BlogPost): Promise<boolean> =>
-    saveDocumentToSupabase('blog', updated);
+    saveDocumentToFirestore('blog', updated);
 
   const handleDeleteBlogPost = async (id: string): Promise<boolean> =>
-    deleteDocumentFromSupabase('blog', id);
+    deleteDocumentFromFirestore('blog', id);
 
   const handleUpdateClinics = async (updatedClinics: ClinicLocation[]): Promise<boolean> => {
     const results = await Promise.all(
-      updatedClinics.map((c) => saveDocumentToSupabase('clinics', c))
+      updatedClinics.map((c) => saveDocumentToFirestore('clinics', c))
     );
     return results.every(Boolean);
   };
 
   // Services handlers
   const handleAddService = async (newService: ClinicalServiceItem): Promise<boolean> =>
-    saveDocumentToSupabase('services', newService);
+    saveDocumentToFirestore('services', newService);
 
   const handleUpdateService = async (updated: ClinicalServiceItem): Promise<boolean> =>
-    saveDocumentToSupabase('services', updated);
+    saveDocumentToFirestore('services', updated);
 
   const handleDeleteService = async (id: string): Promise<boolean> =>
-    deleteDocumentFromSupabase('services', id);
+    deleteDocumentFromFirestore('services', id);
 
   // Testimonials handlers
   const handleAddTestimonial = async (newTestimonial: Testimonial): Promise<boolean> =>
-    saveDocumentToSupabase('testimonials', newTestimonial);
+    saveDocumentToFirestore('testimonials', newTestimonial);
 
   const handleUpdateTestimonial = async (updated: Testimonial): Promise<boolean> =>
-    saveDocumentToSupabase('testimonials', updated);
+    saveDocumentToFirestore('testimonials', updated);
 
   const handleDeleteTestimonial = async (id: string): Promise<boolean> =>
-    deleteDocumentFromSupabase('testimonials', id);
+    deleteDocumentFromFirestore('testimonials', id);
 
-  // Restore from backup – write everything to Supabase (no appointments)
-  const handleRestoreAllData = async (data: any): Promise<void> => {
-    const writers: Promise<boolean>[] = [];
-    if (data.doctors) for (const d of data.doctors) writers.push(saveDocumentToSupabase('doctors', d));
-    if (data.prePostCases) for (const c of data.prePostCases) writers.push(saveDocumentToSupabase('prepost', c));
-    if (data.galleryItems) for (const g of data.galleryItems) writers.push(saveDocumentToSupabase('gallery', g));
-    if (data.blogPosts) for (const b of data.blogPosts) writers.push(saveDocumentToSupabase('blog', b));
-    if (data.clinics) for (const cl of data.clinics) writers.push(saveDocumentToSupabase('clinics', cl));
-    if (data.services) for (const s of data.services) writers.push(saveDocumentToSupabase('services', s));
-    if (data.testimonials) for (const t of data.testimonials) writers.push(saveDocumentToSupabase('testimonials', t));
-    await Promise.all(writers);
+  // Restore from backup – batched write to Firestore (no appointments)
+  const handleRestoreAllData = async (data: RestorePayload): Promise<void> => {
+    await restoreClinicDataToFirestore(data);
   };
 
   return (

@@ -1,6 +1,7 @@
 import React from 'react';
 import { MediaType } from '../types';
 import { Image as ImageIcon, Video } from 'lucide-react';
+import { useResolvedMediaUrl } from '../hooks/useResolvedMediaUrl';
 
 interface MediaRendererProps {
   type: MediaType;
@@ -12,7 +13,7 @@ interface MediaRendererProps {
 
 /**
  * Renders either an <img> or an auto-playing, muted, looping, control-less <video>.
- * Videos are always muted + playsInline because modern browsers block autoplay-with-sound.
+ * Supports inline base64 Data URLs, standard URLs, and chunked `firestore-media://` strings.
  */
 export const MediaRenderer: React.FC<MediaRendererProps> = ({
   type,
@@ -21,12 +22,24 @@ export const MediaRenderer: React.FC<MediaRendererProps> = ({
   style,
   alt,
 }) => {
+  const resolvedUrl = useResolvedMediaUrl(url);
+
   if (!url) return null;
+
+  if (!resolvedUrl) {
+    return (
+      <div
+        className={`${className || ''} bg-slate-200/70 animate-pulse`}
+        style={style}
+        aria-label={alt || 'Loading media'}
+      />
+    );
+  }
 
   if (type === 'video') {
     return (
       <video
-        src={url}
+        src={resolvedUrl}
         className={className}
         style={style}
         autoPlay
@@ -40,7 +53,7 @@ export const MediaRenderer: React.FC<MediaRendererProps> = ({
 
   return (
     <img
-      src={url}
+      src={resolvedUrl}
       alt={alt || ''}
       className={className}
       style={style}

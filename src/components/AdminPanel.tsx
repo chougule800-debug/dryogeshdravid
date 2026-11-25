@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Lock,
   Unlock,
@@ -12,6 +12,7 @@ import {
   Quote,
   Database,
   ShieldCheck,
+  Mail,
 } from 'lucide-react';
 import {
   BlogPost,
@@ -22,7 +23,12 @@ import {
   PrePostCase,
   Testimonial,
 } from '../types';
-import { supabase } from '../lib/supabase';
+import {
+  signInAdmin,
+  signOutAdmin,
+  sendAdminPasswordReset,
+  RestorePayload,
+} from '../services/firebaseService';
 import { AdminDoctorsTab } from './admin/AdminDoctorsTab';
 import { AdminPrePostTab } from './admin/AdminPrePostTab';
 import { AdminGalleryTab } from './admin/AdminGalleryTab';
@@ -40,39 +46,39 @@ interface AdminPanelProps {
   onSignOut: () => void;
   // Doctors
   doctors: Doctor[];
-  onUpdateDoctor: (doc: Doctor) => void;
-  onAddDoctor: (doc: Doctor) => void;
-  onDeleteDoctor: (id: string) => void;
+  onUpdateDoctor: (doc: Doctor) => Promise<boolean>;
+  onAddDoctor: (doc: Doctor) => Promise<boolean>;
+  onDeleteDoctor: (id: string) => Promise<boolean>;
   // PrePost Cases
   prePostCases: PrePostCase[];
-  onAddPrePostCase: (c: PrePostCase) => void;
-  onUpdatePrePostCase: (c: PrePostCase) => void;
-  onDeletePrePostCase: (id: string) => void;
+  onAddPrePostCase: (c: PrePostCase) => Promise<boolean>;
+  onUpdatePrePostCase: (c: PrePostCase) => Promise<boolean>;
+  onDeletePrePostCase: (id: string) => Promise<boolean>;
   // Gallery
   galleryItems: GalleryItem[];
-  onAddGalleryItem: (item: GalleryItem) => void;
-  onUpdateGalleryItem: (item: GalleryItem) => void;
-  onDeleteGalleryItem: (id: string) => void;
+  onAddGalleryItem: (item: GalleryItem) => Promise<boolean>;
+  onUpdateGalleryItem: (item: GalleryItem) => Promise<boolean>;
+  onDeleteGalleryItem: (id: string) => Promise<boolean>;
   // Blog
   blogPosts: BlogPost[];
-  onAddBlogPost: (post: BlogPost) => void;
-  onUpdateBlogPost: (post: BlogPost) => void;
-  onDeleteBlogPost: (id: string) => void;
+  onAddBlogPost: (post: BlogPost) => Promise<boolean>;
+  onUpdateBlogPost: (post: BlogPost) => Promise<boolean>;
+  onDeleteBlogPost: (id: string) => Promise<boolean>;
   // Clinics
   clinics: ClinicLocation[];
-  onUpdateClinics: (clinics: ClinicLocation[]) => void;
+  onUpdateClinics: (clinics: ClinicLocation[]) => Promise<boolean>;
   // Services
   services: ClinicalServiceItem[];
-  onAddService: (s: ClinicalServiceItem) => void;
-  onUpdateService: (s: ClinicalServiceItem) => void;
-  onDeleteService: (id: string) => void;
+  onAddService: (s: ClinicalServiceItem) => Promise<boolean>;
+  onUpdateService: (s: ClinicalServiceItem) => Promise<boolean>;
+  onDeleteService: (id: string) => Promise<boolean>;
   // Testimonials
   testimonials: Testimonial[];
-  onAddTestimonial: (t: Testimonial) => void;
-  onUpdateTestimonial: (t: Testimonial) => void;
-  onDeleteTestimonial: (id: string) => void;
+  onAddTestimonial: (t: Testimonial) => Promise<boolean>;
+  onUpdateTestimonial: (t: Testimonial) => Promise<boolean>;
+  onDeleteTestimonial: (id: string) => Promise<boolean>;
   // Restore
-  onRestoreAllData: (data: any) => void;
+  onRestoreAllData: (data: RestorePayload) => Promise<void>;
 }
 
 export type AdminTabType =
@@ -84,6 +90,24 @@ export type AdminTabType =
   | 'treatments'
   | 'testimonials'
   | 'backup';
+
+function formatAuthError(err: unknown): string {
+  const code = (err as { code?: string })?.code;
+  switch (code) {
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+      return 'Invalid email or password. If you recently migrated, use "Send password reset email" below.';
+    case 'auth/too-many-requests':
+      return 'Too many failed attempts. Please wait a moment and try again.';
+    case 'auth/network-request-failed':
+      return 'Network error while connecting to Firebase Authentication. Check your connection.';
+    case 'auth/invalid-email':
+      return 'Please enter a valid administrator email address.';
+    default:
+      return err instanceof Error ? err.message : 'Login failed.';
+  }
+}
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({
   isOpen,
@@ -122,66 +146,53 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [resetNotice, setResetNotice] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [activeTab, setActiveTab] = useState<AdminTabType>('doctors');
-
-  // Check auth state on mount
-  useEffect(() => {
-    const checkSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) {
-        // Verify admin status by calling is_admin() via RPC
-        const { data, error } = await supabase.rpc('is_admin');
-        if (data === true) {
-          onAuthenticated();
-        } else {
-          // User is not admin, sign out
-          await supabase.auth.signOut();
-        }
-      }
-    };
-    if (isOpen) {
-      checkSession();
-    }
-  }, [isOpen, onAuthenticated]);
 
   if (!isOpen) return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
+    setResetNotice('');
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password,
-      });
-      if (error) throw error;
-      // Check admin status
-      const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin');
-      if (adminError) throw adminError;
-      if (isAdmin) {
-        setPassword('');
-        setAuthError('');
-        onAuthenticated();
-      } else {
-        // Sign out if not admin
-        await supabase.auth.signOut();
-        setAuthError('You are not authorized as an administrator.');
-      }
-    } catch (err: any) {
-      setAuthError(err.message || 'Login failed.');
+      await signInAdmin(email, password);
+      setPassword('');
+      setAuthError('');
+      onAuthenticated();
+    } catch (err: unknown) {
+      setAuthError(formatAuthError(err));
     } finally {
       setLoading(false);
     }
   };
 
+  const handlePasswordReset = async () => {
+    setAuthError('');
+    setResetNotice('');
+    if (!email.trim()) {
+      setAuthError('Enter your administrator email address above to receive a reset link.');
+      return;
+    }
+    setResetting(true);
+    try {
+      await sendAdminPasswordReset(email);
+      setResetNotice('Password reset link sent if an account exists for that email.');
+    } catch (err: unknown) {
+      setAuthError(formatAuthError(err));
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOutAdmin();
     setPassword('');
     setAuthError('');
+    setResetNotice('');
     onSignOut();
   };
 
@@ -287,6 +298,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     required
                   />
                   {authError && <p className="text-xs text-rose-600 font-bold mt-2">{authError}</p>}
+                  {resetNotice && (
+                    <p className="text-xs text-emerald-700 font-bold mt-2">{resetNotice}</p>
+                  )}
                 </div>
                 <button
                   type="submit"
@@ -301,6 +315,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <span>Sign In</span>
                     </>
                   )}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePasswordReset}
+                  disabled={resetting}
+                  className="w-full py-2 text-xs font-semibold text-slate-600 hover:text-[#2D5A50] inline-flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>
+                    {resetting
+                      ? 'Sending reset link...'
+                      : 'Forgot or migrating password? Send reset email'}
+                  </span>
                 </button>
               </form>
             </div>

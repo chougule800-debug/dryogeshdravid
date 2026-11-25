@@ -10,7 +10,7 @@ interface AdminBackupTabProps {
   clinics: ClinicLocation[];
   services: ClinicalServiceItem[];
   testimonials: Testimonial[];
-  onRestoreAllData: (data: any) => void;
+  onRestoreAllData: (data: any) => Promise<void>;
 }
 
 export const AdminBackupTab: React.FC<AdminBackupTabProps> = ({
@@ -60,17 +60,18 @@ export const AdminBackupTab: React.FC<AdminBackupTabProps> = ({
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
-        if (parsed.doctors || parsed.prePostCases) {
-          onRestoreAllData(parsed);
+        if (parsed.doctors || parsed.prePostCases || parsed.galleryItems || parsed.blogPosts || parsed.clinics || parsed.services || parsed.testimonials) {
+          await onRestoreAllData(parsed);
           showSuccess('Full clinic data restored successfully from backup file!');
         } else {
           alert('Invalid backup file format.');
         }
       } catch (err) {
-        alert('Failed to parse backup JSON file.');
+        console.error('Backup restore failed:', err);
+        alert('Failed to restore backup JSON file.');
       }
     };
     reader.readAsText(file);

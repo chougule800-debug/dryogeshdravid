@@ -1,6 +1,33 @@
 export type ClinicBranchId = 'belgaum' | 'goa';
 export type MediaType = 'image' | 'video';
 
+export interface UserProfile {
+  id: string;
+  email: string | null;
+  isAdmin: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AppointmentRecord {
+  id: string;
+  patientName: string | null;
+  patientEmail: string | null;
+  patientPhone: string | null;
+  patientAge: number | null;
+  patientGender: string | null;
+  branchId: ClinicBranchId | string | null;
+  doctorId: string | null;
+  appointmentDate: string | null;
+  appointmentTime: string | null;
+  healthConcern: string | null;
+  consultationType: string | null;
+  status: string;
+  emailReminderSent: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Doctor {
   id: string;
   name: string;

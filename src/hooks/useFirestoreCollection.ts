@@ -1,16 +1,20 @@
-import { useState, useRef, useEffect } from 'react';
-import { subscribeSupabaseCollection } from '../services/supabaseService';
+import { useEffect, useRef, useState } from 'react';
+import {
+  CollectionOrderBy,
+  subscribeFirestoreCollection,
+} from '../services/firebaseService';
 
-export interface SupabaseCollectionState<T> {
+export interface FirestoreCollectionState<T> {
   data: T[];
   loading: boolean;
   error: string | null;
 }
 
-export function useSupabaseCollection<T extends { id: string }>(
-  table: string,
-  orderBy?: { column: string; ascending?: boolean }
-): SupabaseCollectionState<T> {
+export function useFirestoreCollection<T extends { id: string }>(
+  collectionName: string,
+  orderBy?: CollectionOrderBy,
+  limitCount?: number
+): FirestoreCollectionState<T> {
   const [data, setData] = useState<T[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,21 +31,27 @@ export function useSupabaseCollection<T extends { id: string }>(
     setError(msg);
   };
 
+  const orderField = orderBy?.field ?? orderBy?.column;
+  const orderAsc = orderBy?.ascending;
+
   useEffect(() => {
     setLoading(true);
     setError(null);
-    setData([]);
 
-    const unsubscribe = subscribeSupabaseCollection<T>(
-      table,
+    const unsubscribe = subscribeFirestoreCollection<T>(
+      collectionName,
       (items) => onDataRef.current(items || []),
       (msg) => onErrorRef.current(msg),
-      orderBy
+      {
+        orderBy: orderField ? { field: orderField, ascending: orderAsc } : undefined,
+        limitCount,
+      }
     );
+
     return () => {
       if (typeof unsubscribe === 'function') unsubscribe();
     };
-  }, [table, orderBy]);
+  }, [collectionName, orderField, orderAsc, limitCount]);
 
   return { data, loading, error };
 }

@@ -14,7 +14,7 @@ import {
   Cloud,
   AlertCircle,
 } from 'lucide-react';
-import { uploadFileToStorage, validateMediaFile } from '../../services/supabaseService';
+import { uploadMediaToFirestore, validateMediaFile } from '../../services/firebaseService';
 import { MediaRenderer, MediaTypeToggle } from '../MediaRenderer';
 
 interface AdminGalleryTabProps {
@@ -66,14 +66,14 @@ export const AdminGalleryTab: React.FC<AdminGalleryTabProps> = ({
 
     setIsUploading(true);
     try {
-      const url = await uploadFileToStorage(
+      const url = await uploadMediaToFirestore(
         file,
         'gallery',
         formMediaType === 'video' ? 'videos' : 'images'
       );
       setFormMediaUrl(url);
       showSuccess(
-        `${formMediaType === 'video' ? 'Video' : 'Photo'} uploaded to Supabase Storage.`
+        `${formMediaType === 'video' ? 'Video' : 'Photo'} saved to Cloud Firestore.`
       );
     } catch (err: any) {
       console.error('Upload failed:', err);

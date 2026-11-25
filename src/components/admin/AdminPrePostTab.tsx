@@ -14,7 +14,7 @@ import {
   Cloud,
   AlertCircle,
 } from 'lucide-react';
-import { uploadFileToStorage, validateMediaFile } from '../../services/supabaseService';
+import { uploadMediaToFirestore, validateMediaFile } from '../../services/firebaseService';
 import { MediaRenderer, MediaTypeToggle } from '../MediaRenderer';
 
 interface AdminPrePostTabProps {
@@ -79,14 +79,14 @@ export const AdminPrePostTab: React.FC<AdminPrePostTabProps> = ({
 
     setLoading(true);
     try {
-      const url = await uploadFileToStorage(
+      const url = await uploadMediaToFirestore(
         file,
         'prepost',
         mediaType === 'video' ? 'videos' : 'images'
       );
       setter(url);
       showSuccess(
-        `${side} ${mediaType === 'video' ? 'video' : 'photo'} uploaded to Supabase Storage.`
+        `${side} ${mediaType === 'video' ? 'video' : 'photo'} saved to Cloud Firestore.`
       );
     } catch (err: any) {
       console.error('Upload failed:', err);

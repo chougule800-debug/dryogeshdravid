@@ -1,5 +1,6 @@
 import React from 'react';
 import { Doctor } from '../types';
+import { useResolvedMediaUrl } from '../hooks/useResolvedMediaUrl';
 import { 
   GraduationCap, 
   Award, 
@@ -26,6 +27,7 @@ interface DoctorsSectionProps {
 export const DoctorsSection: React.FC<DoctorsSectionProps> = ({ doctors = [], loading = false, error = null, onContactClinic }) => {
   const activeDoctors = doctors.filter(d => d.id === 'dr-yogesh-dravid' || !doctors.some(x => x.id === 'dr-yogesh-dravid'));
   const doctor = activeDoctors[0];
+  const resolvedDoctorImage = useResolvedMediaUrl(doctor?.image);
 
   if (error) {
     return (
@@ -87,7 +89,7 @@ export const DoctorsSection: React.FC<DoctorsSectionProps> = ({ doctors = [], lo
               <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start text-center sm:text-left">
                 <div className="relative w-36 h-36 sm:w-40 sm:h-40 rounded-3xl overflow-hidden shadow-md border-2 border-emerald-700/20 shrink-0 bg-slate-100">
                   <img
-                    src={doctor.image}
+                    src={resolvedDoctorImage || '/images/dr_yogesh_dravid.jpg'}
                     alt={doctor.name}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"

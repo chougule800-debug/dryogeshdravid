@@ -14,13 +14,14 @@ import {
   Loader2,
   Cloud
 } from 'lucide-react';
-import { uploadFileToStorage } from '../../services/supabaseService';
+import { uploadMediaToFirestore, validateMediaFile } from '../../services/firebaseService';
+import { MediaRenderer } from '../MediaRenderer';
 
 interface AdminDoctorsTabProps {
   doctors: Doctor[];
-  onUpdateDoctor: (doc: Doctor) => void;
-  onAddDoctor: (doc: Doctor) => void;
-  onDeleteDoctor: (id: string) => void;
+  onUpdateDoctor: (doc: Doctor) => Promise<boolean>;
+  onAddDoctor: (doc: Doctor) => Promise<boolean>;
+  onDeleteDoctor: (id: string) => Promise<boolean>;
 }
 
 export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
@@ -53,16 +54,17 @@ export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, setter: (s: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Image exceeds 5MB limit.');
+      const check = validateMediaFile(file, 'image');
+      if (!check.valid) {
+        alert(check.error || 'Invalid image file.');
         return;
       }
       setIsUploading(true);
       try {
-        const url = await uploadFileToStorage(file, 'doctors');
+        const url = await uploadMediaToFirestore(file, 'doctors');
         if (url) {
           setter(url);
-          showSuccess('Doctor photo uploaded to Supabase Storage!');
+          showSuccess('Doctor photo saved as string in Cloud Firestore!');
         }
       } catch (err) {
         console.error('Doctor photo upload failed:', err);
@@ -236,15 +238,21 @@ export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
                 </label>
 
                 <div className="relative w-36 h-36 rounded-2xl overflow-hidden shadow-md border-2 border-[#2D5A50]/40 bg-slate-100 shrink-0">
-                  <img
-                    src={docImage || ''}
-                    alt="Doctor Preview"
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=600';
-                    }}
-                  />
+                  {docImage ? (
+                    <MediaRenderer
+                      type="image"
+                      url={docImage}
+                      alt="Doctor Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img
+                      src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=600"
+                      alt="Doctor Preview"
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
                   <div className="absolute bottom-0 inset-x-0 bg-[#0f2420]/90 text-[10px] text-emerald-300 font-bold py-1 px-1 truncate">
                     {docRole || 'Doctor'}
                   </div>
@@ -260,7 +268,7 @@ export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
                       {isUploading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin text-[#2D5A50]" />
-                          <span>Uploading to Supabase Storage...</span>
+                          <span>Saving to Cloud Firestore...</span>
                         </>
                       ) : (
                         <>
@@ -483,15 +491,21 @@ export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
                   <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden shadow-sm border border-slate-200 shrink-0 bg-slate-100">
-                    <img
-                      src={doctor.image}
-                      alt={doctor.name}
-                      className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=600';
-                      }}
-                    />
+                    {doctor.image ? (
+                      <MediaRenderer
+                        type="image"
+                        url={doctor.image}
+                        alt={doctor.name}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <img
+                        src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=600"
+                        alt={doctor.name}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    )}
                     <div className="absolute bottom-0 inset-x-0 bg-[#0f2420]/95 text-[9px] text-emerald-300 font-bold py-0.5 text-center truncate px-1">
                       {doctor.role || 'Doctor'}
                     </div>
@@ -562,10 +576,14 @@ export const AdminDoctorsTab: React.FC<AdminDoctorsTabProps> = ({
 
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       if (window.confirm(`Are you sure you want to delete profile for "${doctor.name}"?`)) {
-                        onDeleteDoctor(doctor.id);
-                        showSuccess(`Doctor "${doctor.name}" removed.`);
+                        const ok = await onDeleteDoctor(doctor.id);
+                        if (ok) {
+                          showSuccess(`Doctor "${doctor.name}" removed.`);
+                        } else {
+                          alert('Failed to delete doctor. Please try again.');
+                        }
                       }
                     }}
                     className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"

@@ -7,3 +7,13 @@ coverage/
 .env*
 !.env.example
 .venv
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+migration-archive/
+backups/
+*firebase-adminsdk*.json
+service-account*.json
+drdravid-f4b42-firebase-adminsdk-fbsvc-725df213f9.json*
+drdravid-f4b42-firebase-adminsdk-fbsvc-725df213f9*.json

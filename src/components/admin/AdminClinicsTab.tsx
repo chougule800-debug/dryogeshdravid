@@ -16,7 +16,7 @@ import {
 
 interface AdminClinicsTabProps {
   clinics: ClinicLocation[];
-  onUpdateClinics: (clinics: ClinicLocation[]) => void;
+  onUpdateClinics: (clinics: ClinicLocation[]) => Promise<boolean>;
 }
 
 export const AdminClinicsTab: React.FC<AdminClinicsTabProps> = ({
@@ -25,6 +25,7 @@ export const AdminClinicsTab: React.FC<AdminClinicsTabProps> = ({
 }) => {
   const [editingClinicId, setEditingClinicId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   // Form State
   const [formName, setFormName] = useState('');
@@ -45,6 +46,10 @@ export const AdminClinicsTab: React.FC<AdminClinicsTabProps> = ({
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(''), 3500);
   };
+  const showError = (msg: string) => {
+    setErrorMsg(msg);
+    setTimeout(() => setErrorMsg(''), 4000);
+  };
 
   const handleStartEdit = (clinic: ClinicLocation) => {
     setEditingClinicId(clinic.id);
@@ -63,7 +68,7 @@ export const AdminClinicsTab: React.FC<AdminClinicsTabProps> = ({
     setFormMapEmbedUrl(clinic.googleMapEmbedUrl || '');
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingClinicId) return;
 
@@ -94,7 +99,11 @@ export const AdminClinicsTab: React.FC<AdminClinicsTabProps> = ({
       return c;
     });
 
-    onUpdateClinics(updatedClinics);
+    const ok = await onUpdateClinics(updatedClinics);
+    if (!ok) {
+      showError('Failed to save clinic branch updates. Please try again.');
+      return;
+    }
     showSuccess(`Clinic info for "${formName}" updated successfully!`);
     setEditingClinicId(null);
   };
@@ -121,6 +130,11 @@ export const AdminClinicsTab: React.FC<AdminClinicsTabProps> = ({
         <div className="p-3.5 rounded-2xl bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs sm:text-sm font-semibold flex items-center gap-2 animate-fadeIn">
           <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0" />
           <span>{successMsg}</span>
+        </div>
+      )}
+      {errorMsg && (
+        <div className="p-3.5 rounded-2xl bg-rose-100 border border-rose-300 text-rose-900 text-xs sm:text-sm font-semibold flex items-center gap-2 animate-fadeIn">
+          <span>{errorMsg}</span>
         </div>
       )}
 
